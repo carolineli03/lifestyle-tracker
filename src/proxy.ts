@@ -38,8 +38,15 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Everything except static assets, the PWA shell files, and images.
+     * Everything except framework internals, the PWA shell files, and images.
+     *
+     * `_next` is excluded WHOLESALE, not just `_next/static` and
+     * `_next/image`. The dev server's HMR websocket lives at `_next/hmr`, and
+     * running an auth redirect on that upgrade request breaks the handshake —
+     * which in Turbopack stalls hydration, so the whole app renders but never
+     * becomes interactive. Production is unaffected, which makes it a nasty
+     * one to notice. It also spares a Supabase round trip per asset request.
      */
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

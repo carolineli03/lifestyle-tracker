@@ -181,6 +181,18 @@ export type Database = {
     Views: Record<never, never>;
     Functions: {
       create_household: { Args: { p_name: string }; Returns: Household };
+      log_entry: {
+        Args: {
+          p_name: string;
+          p_kcal: number;
+          p_protein_g: number;
+          p_carb_g: number;
+          p_fat_g: number;
+          p_logged_on?: string;
+          p_remember?: boolean;
+        };
+        Returns: Entry;
+      };
       join_household: { Args: { p_code: string }; Returns: Household };
       current_household_id: { Args: Record<string, never>; Returns: string | null };
       is_household_member: { Args: { p_household_id: string }; Returns: boolean };

@@ -125,6 +125,26 @@ on `household_members` at all.
 
 ---
 
+## How the food library builds itself
+
+There is no food database to import and nothing to seed. Confirming an entry
+calls the `log_entry` RPC, which writes the entry *and* upserts the food into
+the household library in one transaction, deduping case-insensitively on name
+and bumping `times_logged`. Search on the Today tab then orders by that count,
+so the things you eat most float to the top on their own.
+
+Two details worth knowing six months from now:
+
+- **Adjusting a portion does not rewrite the library.** Log half a serving and
+  the entry records half; the library row keeps the full portion it was
+  created with. The library is the canonical serving, not the last thing you
+  happened to eat.
+- **The whole library is fetched once and filtered in memory.** It is a
+  household's own list — tens to low hundreds of rows — so search-as-you-type
+  lands on the keystroke instead of a debounced round trip.
+
+---
+
 ## Running the tests
 
 ```bash
@@ -138,6 +158,10 @@ Two suites matter, because they are the two places where a bug does real damage:
   `supabase/migrations` on top of a small Supabase shim (the `auth` schema,
   `auth.uid()`, and the three PostgREST roles), then drives it as three separate
   `authenticated` connections: you, your partner, and a stranger.
+- **Day maths** (`tests/totals.test.ts`, `tests/date.test.ts`) — calories
+  remaining, portion scaling, food ranking, and local calendar dates. The date
+  tests exist because `logged_on` is a *local* day: build it from a UTC
+  timestamp and dinner logged at 6pm lands on tomorrow.
 - **Target maths** — Mifflin-St Jeor, the calorie floor, and the macro split.
   *(Arrives with the Progress tab in phase 4.)*
 
@@ -236,7 +260,7 @@ inline script, so there is no flash of the wrong theme.
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Scaffold, migrations, RLS, auth, tab shell, design tokens | **Done** |
-| 2 | Today — food entry, food library, movement, weigh-ins | Not started |
+| 2 | Today — food entry, food library, movement, weigh-ins | **Done** |
 | 3 | Fridge — manual add, expiry badges, filters | Not started |
 | 4 | Progress — chart, stats, target calculator | Not started |
 | 5 | AI routes — estimate, sort groceries, cook, prep plan | Not started |

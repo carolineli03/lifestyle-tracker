@@ -49,10 +49,10 @@ const THEME_BOOTSTRAP = `
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${bricolage.variable} ${inter.variable}`}>
-      <head>
+      <body>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
-      </head>
-      <body>{children}</body>
+        {children}
+      </body>
     </html>
   );
 }

@@ -243,6 +243,120 @@ describe("RLS policies", () => {
     });
   });
 
+  describe.runIf(available)("log_entry", () => {
+    it("writes the entry and remembers the food in one go", async () => {
+      await alice.query("select * from public.log_entry($1, $2, $3, $4, $5, $6)", [
+        "Oat porridge",
+        320,
+        11,
+        54,
+        6,
+        "2026-09-13",
+      ]);
+
+      const entry = await alice.query<{ name: string; kcal: number; food_id: string | null }>(
+        "select name, kcal, food_id from public.entries where name = 'Oat porridge'",
+      );
+      expect(entry.rows[0]?.kcal).toBe(320);
+      expect(entry.rows[0]?.food_id).not.toBeNull();
+
+      const food = await alice.query<{ times_logged: number }>(
+        "select times_logged from public.foods where name = 'Oat porridge'",
+      );
+      expect(food.rows[0]?.times_logged).toBe(1);
+    });
+
+    it("increments the counter instead of duplicating the food", async () => {
+      await alice.query("select * from public.log_entry($1, $2, $3, $4, $5, $6)", [
+        "oat PORRIDGE", // different casing on purpose
+        320,
+        11,
+        54,
+        6,
+        "2026-09-13",
+      ]);
+
+      const { rows } = await alice.query<{ count: string; times_logged: number }>(
+        `select count(*)::text as count, max(times_logged) as times_logged
+         from public.foods where lower(name) = 'oat porridge'`,
+      );
+      expect(rows[0]?.count).toBe("1");
+      expect(rows[0]?.times_logged).toBe(2);
+    });
+
+    it("leaves the library's canonical macros alone when a portion is adjusted", async () => {
+      // Half a portion today should not rewrite what a full portion is.
+      await alice.query("select * from public.log_entry($1, $2, $3, $4, $5, $6)", [
+        "Oat porridge",
+        160,
+        5.5,
+        27,
+        3,
+        "2026-09-13",
+      ]);
+
+      const food = await alice.query<{ kcal: number }>(
+        "select kcal from public.foods where lower(name) = 'oat porridge'",
+      );
+      expect(food.rows[0]?.kcal).toBe(320);
+
+      // Three entries by now: the two full portions logged above (one of them
+      // under different casing) and this half one. Each kept its own numbers.
+      const entries = await alice.query<{ kcal: number }>(
+        "select kcal from public.entries where lower(name) = 'oat porridge' order by kcal",
+      );
+      expect(entries.rows.map((r) => r.kcal)).toEqual([160, 320, 320]);
+    });
+
+    it("can log without remembering the food", async () => {
+      await alice.query("select * from public.log_entry($1, $2, $3, $4, $5, $6, $7)", [
+        "Slice of birthday cake",
+        400,
+        4,
+        55,
+        18,
+        "2026-09-13",
+        false,
+      ]);
+
+      const food = await alice.query("select 1 from public.foods where name = 'Slice of birthday cake'");
+      expect(food.rows).toHaveLength(0);
+
+      const entry = await alice.query("select 1 from public.entries where name = 'Slice of birthday cake'");
+      expect(entry.rows).toHaveLength(1);
+    });
+
+    it("shares the remembered food with the household but not the entry", async () => {
+      const food = await bob.query("select name from public.foods where lower(name) = 'oat porridge'");
+      expect(food.rows).toHaveLength(1);
+
+      const entry = await bob.query("select name from public.entries where lower(name) = 'oat porridge'");
+      expect(entry.rows).toHaveLength(0);
+    });
+
+    it("refuses a nameless entry", async () => {
+      await expect(
+        alice.query("select * from public.log_entry($1, $2, $3, $4, $5, $6)", ["   ", 100, 0, 0, 0, "2026-09-13"]),
+      ).rejects.toThrow(/needs a name/i);
+    });
+
+    it("files the entry under the user who called it", async () => {
+      await bob.query("select * from public.log_entry($1, $2, $3, $4, $5, $6)", [
+        "Tuna salad",
+        280,
+        30,
+        4,
+        15,
+        "2026-09-13",
+      ]);
+      const mine = await bob.query("select name from public.entries");
+      expect(mine.rows.map((r) => r.name)).toContain("Tuna salad");
+
+      const hers = await alice.query("select name from public.entries where name = 'Tuna salad'");
+      expect(hers.rows).toHaveLength(0);
+    });
+  });
+
   describe.runIf(available)("household membership", () => {
     it("lets partners see each other", async () => {
       const { rows } = await bob.query("select user_id from public.household_members");
