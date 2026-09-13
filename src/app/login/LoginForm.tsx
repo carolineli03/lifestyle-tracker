@@ -34,7 +34,7 @@ export function LoginForm() {
       <div className="card mt-8 p-5">
         <h2 className="font-display text-lg font-semibold">Check your email</h2>
         <p className="mt-2 text-[15px] text-muted">
-          We sent a sign-in link to <span className="text-ink">{email}</span>. It opens Icebox
+          We sent a sign-in link to <span className="text-ink">{email}</span>. It opens Lifestyle Tracker
           directly — no password to remember.
         </p>
         <button type="button" className="btn btn-quiet mt-4" onClick={() => setState({ kind: "idle" })}>

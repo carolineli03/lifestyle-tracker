@@ -21,7 +21,7 @@ import {
  * The two load-bearing assertions the spec asks for are marked below.
  */
 
-const DB_NAME = "icebox_rls_test";
+const DB_NAME = "lifestyle_tracker_rls_test";
 
 /**
  * Probed at module scope, not in beforeAll: Vitest decides which suites to

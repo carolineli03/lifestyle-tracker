@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/household";
 import { OnboardingForm } from "./OnboardingForm";
 
-export const metadata = { title: "Set up your kitchen · Icebox" };
+export const metadata = { title: "Set up your kitchen · Lifestyle Tracker" };
 
 export default async function OnboardingPage() {
   const session = await getSession();

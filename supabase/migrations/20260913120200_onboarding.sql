@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- Icebox: onboarding
+-- Lifestyle Tracker: onboarding
 --
 -- Sign-up gives you a profile row and nothing else. The first screen after
 -- authentication asks one question — start a kitchen, or join one with a code

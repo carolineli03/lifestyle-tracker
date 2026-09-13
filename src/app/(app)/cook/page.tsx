@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Placeholder } from "@/components/Placeholder";
 
-export const metadata = { title: "Cook · Icebox" };
+export const metadata = { title: "Cook · Lifestyle Tracker" };
 
 export default function CookPage() {
   return (

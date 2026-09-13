@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type Theme = "system" | "light" | "dark";
 
-const STORAGE_KEY = "icebox-theme";
+const STORAGE_KEY = "lifestyle-tracker-theme";
 
 function apply(theme: Theme): void {
   const root = document.documentElement;

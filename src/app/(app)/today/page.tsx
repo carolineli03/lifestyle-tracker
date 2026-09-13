@@ -3,7 +3,7 @@ import { getSession } from "@/lib/household";
 import { supabaseServer } from "@/lib/supabase/server";
 import { TodayClient } from "./TodayClient";
 
-export const metadata = { title: "Today · Icebox" };
+export const metadata = { title: "Today · Lifestyle Tracker" };
 
 export default async function TodayPage() {
   const session = await getSession();

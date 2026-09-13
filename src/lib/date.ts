@@ -1,5 +1,5 @@
 /**
- * Dates in Icebox are *local calendar days*, not instants.
+ * Dates in Lifestyle Tracker are *local calendar days*, not instants.
  *
  * `logged_on` is a Postgres `date`. If you build it from a UTC timestamp, then
  * anyone west of Greenwich logging dinner after 5pm files it under tomorrow.

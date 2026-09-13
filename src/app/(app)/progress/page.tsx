@@ -4,7 +4,7 @@ import { getSession } from "@/lib/household";
 import { supabaseServer } from "@/lib/supabase/server";
 import { ProgressClient } from "./ProgressClient";
 
-export const metadata = { title: "Progress · Icebox" };
+export const metadata = { title: "Progress · Lifestyle Tracker" };
 
 export default async function ProgressPage() {
   const session = await getSession();

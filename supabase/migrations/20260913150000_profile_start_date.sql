@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- Icebox: profile start date
+-- Lifestyle Tracker: profile start date
 --
 -- The Progress chart draws a straight goal-pace line from (start date, start
 -- weight) to (goal date, goal weight). start_weight already lived here; its

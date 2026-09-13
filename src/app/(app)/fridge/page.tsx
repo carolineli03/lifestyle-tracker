@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { getSession } from "@/lib/household";
 import { FridgeClient } from "./FridgeClient";
 
-export const metadata = { title: "Fridge · Icebox" };
+export const metadata = { title: "Fridge · Lifestyle Tracker" };
 
 export default async function FridgePage() {
   const session = await getSession();

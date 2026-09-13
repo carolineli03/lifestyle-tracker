@@ -1,4 +1,4 @@
-# Icebox
+# Lifestyle Tracker
 
 A meal-prep tracker for one household of two people. It keeps track of what's
 in the kitchen, counts calories and macros, logs movement and weight, and
@@ -256,7 +256,7 @@ run is not a passing run — check the output before trusting it.
 1. Push the repo to GitHub and import it at <https://vercel.com/new>.
 2. Add the four environment variables above to the Vercel project
    (Settings → Environment Variables). Set `NEXT_PUBLIC_SITE_URL` to the
-   production origin, e.g. `https://icebox.vercel.app`.
+   production origin, e.g. `https://lifestyle-tracker.vercel.app`.
    `ANTHROPIC_API_KEY` goes in as a plain server variable — do not prefix it.
 3. Add `https://<your-domain>/auth/callback` to the Supabase redirect URL list.
 4. Apply migrations to the production project: `npm run db:push`.
@@ -318,7 +318,7 @@ full pill on chips. `prefers-reduced-motion` is respected, keyboard focus is
 always visible, and controls are at least 44px tall.
 
 Theme follows the system setting; the manual override on the Fridge tab writes
-`icebox-theme` to `localStorage` and is applied before first paint by a small
+`lifestyle-tracker-theme` to `localStorage` and is applied before first paint by a small
 inline script, so there is no flash of the wrong theme.
 
 ---

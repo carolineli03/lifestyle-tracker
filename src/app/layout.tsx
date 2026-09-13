@@ -16,9 +16,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Icebox",
+  title: "Lifestyle Tracker",
   description: "What's in the kitchen, what you ate, and what to cook next.",
-  applicationName: "Icebox",
+  applicationName: "Lifestyle Tracker",
 };
 
 export const viewport: Viewport = {
@@ -38,7 +38,7 @@ export const viewport: Viewport = {
 const THEME_BOOTSTRAP = `
 (function () {
   try {
-    var t = localStorage.getItem("icebox-theme");
+    var t = localStorage.getItem("lifestyle-tracker-theme");
     if (t === "light" || t === "dark") {
       document.documentElement.setAttribute("data-theme", t);
     }
