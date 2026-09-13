@@ -357,6 +357,95 @@ describe("RLS policies", () => {
     });
   });
 
+  describe.runIf(available)("the shopping list", () => {
+    it("is shared: either person can add, both can see", async () => {
+      await alice.query(
+        "insert into public.shopping_list (household_id, name, added_by) values ($1, 'Tahini', $2)",
+        [householdId, aliceId],
+      );
+      const seen = await bob.query("select name from public.shopping_list");
+      expect(seen.rows.map((r) => r.name)).toContain("Tahini");
+    });
+
+    it("refuses a duplicate of something already outstanding", async () => {
+      await expect(
+        bob.query("insert into public.shopping_list (household_id, name) values ($1, 'tahini')", [
+          householdId,
+        ]),
+      ).rejects.toThrow(/duplicate key|unique/i);
+    });
+
+    it("allows the same name again once the old one is gone", async () => {
+      await admin.query("update public.shopping_list set done = true where name = 'Tahini'");
+      await bob.query("insert into public.shopping_list (household_id, name) values ($1, 'Tahini')", [
+        householdId,
+      ]);
+      const { rows } = await bob.query("select count(*)::text as c from public.shopping_list where lower(name) = 'tahini'");
+      expect(rows[0]?.c).toBe("2");
+      // Put the fixture back to a single open row for the tests below.
+      await admin.query("delete from public.shopping_list where done = true");
+    });
+
+    it("is invisible to another household", async () => {
+      const { rows } = await carol.query("select name from public.shopping_list");
+      expect(rows).toHaveLength(0);
+    });
+
+    it("cannot be written into someone else's household", async () => {
+      await expect(
+        carol.query("insert into public.shopping_list (household_id, name) values ($1, 'Sabotage')", [
+          householdId,
+        ]),
+      ).rejects.toThrow(/row-level security/i);
+    });
+  });
+
+  describe.runIf(available)("stock_shopping_item", () => {
+    it("moves an item off the list and into the kitchen in one step", async () => {
+      const listed = await bob.query<{ id: string }>(
+        "select id from public.shopping_list where lower(name) = 'tahini'",
+      );
+      const id = listed.rows[0]?.id;
+      expect(id).toBeDefined();
+
+      const stocked = await bob.query<{ name: string; location: string; quantity: string | null }>(
+        "select name, location, quantity from public.stock_shopping_item($1, $2, $3, $4)",
+        [id, "1 jar", "pantry", "2027-01-01"],
+      );
+      expect(stocked.rows[0]).toMatchObject({ name: "Tahini", location: "pantry", quantity: "1 jar" });
+
+      const stillListed = await bob.query("select 1 from public.shopping_list where id = $1", [id]);
+      expect(stillListed.rows).toHaveLength(0);
+
+      // And Alice, who shares the kitchen, sees it arrive.
+      const hers = await alice.query("select name from public.pantry_items where name = 'Tahini'");
+      expect(hers.rows).toHaveLength(1);
+    });
+
+    it("refuses an item that is no longer on the list", async () => {
+      await expect(
+        bob.query("select * from public.stock_shopping_item($1)", [
+          "00000000-0000-0000-0000-000000000000",
+        ]),
+      ).rejects.toThrow(/no longer on the list/i);
+    });
+
+    it("will not let an outsider stock another household's item", async () => {
+      await alice.query(
+        "insert into public.shopping_list (household_id, name) values ($1, 'Miso')",
+        [householdId],
+      );
+      const { rows } = await alice.query<{ id: string }>(
+        "select id from public.shopping_list where name = 'Miso'",
+      );
+      // Carol cannot even see the row, so the function reports it as missing
+      // rather than leaking that it exists.
+      await expect(
+        carol.query("select * from public.stock_shopping_item($1)", [rows[0]?.id]),
+      ).rejects.toThrow(/no longer on the list/i);
+    });
+  });
+
   describe.runIf(available)("household membership", () => {
     it("lets partners see each other", async () => {
       const { rows } = await bob.query("select user_id from public.household_members");

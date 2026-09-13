@@ -145,6 +145,39 @@ Two details worth knowing six months from now:
 
 ---
 
+## What's in the kitchen, and what isn't
+
+The Fridge tab holds two lists that deliberately live in separate tables.
+
+**`pantry_items`** is what you own. Every row has a location and, optionally, a
+use-by date. The inventory is grouped by location with the soonest-expiring
+first and undated items last, and each item carries a badge: red at two days
+or less (including already past), amber at five or less, neutral otherwise,
+and a plain date once it is more than a month out. Anything inside five days
+also surfaces in a "use these up" strip at the top, which is what phase 5's
+cook suggestions will read from.
+
+**`shopping_list`** is what you don't. A thing you haven't bought has no
+location and no shelf life, which is why it isn't a `needed` flag on
+`pantry_items` — that would put a filter on every inventory query and leave two
+meaningless columns on half the rows.
+
+The two are joined by two moves:
+
+- **Used up → shopping list.** An item leaves the kitchen and lands on the
+  list.
+- **Tick off → into the kitchen.** After a shop, ticking an item opens a small
+  put-away step (quantity, location, and a shelf-life shortcut) and the
+  `stock_shopping_item` RPC does both writes in one transaction. Without that,
+  a failure halfway leaves groceries both still on the list and already in the
+  fridge.
+
+Outstanding list items are deduped case-insensitively by a *partial* unique
+index (`where done = false`), so adding milk twice in one week is refused but
+buying milk again next month is fine.
+
+---
+
 ## Running the tests
 
 ```bash
@@ -162,6 +195,8 @@ Two suites matter, because they are the two places where a bug does real damage:
   remaining, portion scaling, food ranking, and local calendar dates. The date
   tests exist because `logged_on` is a *local* day: build it from a UTC
   timestamp and dinner logged at 6pm lands on tomorrow.
+- **Expiry maths** (`tests/expiry.test.ts`) — badge thresholds, sort order,
+  and day counting across month ends and daylight-saving shifts.
 - **Target maths** — Mifflin-St Jeor, the calorie floor, and the macro split.
   *(Arrives with the Progress tab in phase 4.)*
 
@@ -261,7 +296,7 @@ inline script, so there is no flash of the wrong theme.
 |---|---|---|
 | 1 | Scaffold, migrations, RLS, auth, tab shell, design tokens | **Done** |
 | 2 | Today — food entry, food library, movement, weigh-ins | **Done** |
-| 3 | Fridge — manual add, expiry badges, filters | Not started |
+| 3 | Fridge — inventory, shopping list, expiry badges, filters | **Done** |
 | 4 | Progress — chart, stats, target calculator | Not started |
 | 5 | AI routes — estimate, sort groceries, cook, prep plan | Not started |
 | 6 | PWA packaging, offline reads, Vercel deploy | Not started |

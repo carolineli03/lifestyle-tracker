@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import { defineConfig } from "vitest/config";
 
@@ -5,7 +7,16 @@ import { defineConfig } from "vitest/config";
 // having to prefix the command with the connection string every time.
 loadEnv({ path: ".env.local", quiet: true });
 
+const root = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
+  // Mirror the "@/*" path alias from tsconfig.json. Without it, any module
+  // under test that imports a sibling by alias fails to resolve — and it fails
+  // at import time, so the whole file reports as "no tests" rather than as a
+  // failing assertion.
+  resolve: {
+    alias: { "@": path.join(root, "src") },
+  },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],

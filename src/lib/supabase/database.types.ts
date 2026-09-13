@@ -73,6 +73,17 @@ export type Food = {
   created_at: string;
 };
 
+export type ShoppingListItem = {
+  household_id: string;
+  id: string;
+  name: string;
+  note: string | null;
+  done: boolean;
+  added_by: string | null;
+  created_at: string;
+  done_at: string | null;
+};
+
 export type Entry = {
   user_id: string;
   id: string;
@@ -144,6 +155,12 @@ export type Database = {
         Update: Partial<PantryItem>;
         Relationships: [];
       };
+      shopping_list: {
+        Row: Row<ShoppingListItem>;
+        Insert: Insert<ShoppingListItem, "id" | "created_at" | "note" | "done" | "added_by" | "done_at">;
+        Update: Partial<ShoppingListItem>;
+        Relationships: [];
+      };
       foods: {
         Row: Row<Food>;
         Insert: Insert<
@@ -194,6 +211,15 @@ export type Database = {
         Returns: Entry;
       };
       join_household: { Args: { p_code: string }; Returns: Household };
+      stock_shopping_item: {
+        Args: {
+          p_id: string;
+          p_quantity?: string | null;
+          p_location?: StorageLocation;
+          p_expires_on?: string | null;
+        };
+        Returns: PantryItem;
+      };
       current_household_id: { Args: Record<string, never>; Returns: string | null };
       is_household_member: { Args: { p_household_id: string }; Returns: boolean };
     };
