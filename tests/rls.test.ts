@@ -1,0 +1,275 @@
+import type { Client } from "pg";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  ADMIN_URL,
+  adminClient,
+  createUser,
+  databaseAvailable,
+  dropTestDatabase,
+  provisionTestDatabase,
+  userClient,
+} from "./support/db.js";
+
+/**
+ * These tests are the reason the household/private split is trustworthy.
+ *
+ * The cast:
+ *   alice   — primary user, owns the household
+ *   bob     — alice's partner, joins her household with the code
+ *   carol   — a stranger with her own household
+ *
+ * The two load-bearing assertions the spec asks for are marked below.
+ */
+
+const DB_NAME = "icebox_rls_test";
+
+/**
+ * Probed at module scope, not in beforeAll: Vitest decides which suites to
+ * collect before any hook runs, so the availability flag has to exist first.
+ * Otherwise `runIf` reads a stale `false` and the whole suite silently skips.
+ */
+const available = await databaseAvailable();
+
+let url = "";
+let admin: Client;
+let alice: Client;
+let bob: Client;
+let carol: Client;
+let aliceId = "";
+let bobId = "";
+let carolId = "";
+let householdId = "";
+let joinCode = "";
+
+beforeAll(async () => {
+  if (!available) return;
+
+  url = await provisionTestDatabase(DB_NAME);
+  admin = await adminClient(url);
+
+  aliceId = await createUser(admin, "alice@example.test");
+  bobId = await createUser(admin, "bob@example.test");
+  carolId = await createUser(admin, "carol@example.test");
+
+  alice = await userClient(url, aliceId);
+  bob = await userClient(url, bobId);
+  carol = await userClient(url, carolId);
+
+  const created = await alice.query<{ id: string; join_code: string }>(
+    "select * from public.create_household($1)",
+    ["Our kitchen"],
+  );
+  const household = created.rows[0];
+  if (!household) throw new Error("create_household returned nothing");
+  householdId = household.id;
+  joinCode = household.join_code;
+
+  await bob.query("select * from public.join_household($1)", [joinCode]);
+  await carol.query("select * from public.create_household($1)", ["Carol's kitchen"]);
+}, 60_000);
+
+afterAll(async () => {
+  if (!available) return;
+  await Promise.all(
+    [admin, alice, bob, carol].map((c) => c?.end().catch(() => undefined)),
+  );
+  await dropTestDatabase(DB_NAME);
+});
+
+if (!available) {
+  console.warn(
+    `\n[rls] No Postgres reachable at ${ADMIN_URL}.` +
+      "\n[rls] Set TEST_DATABASE_URL or start one (see README > Running the tests)." +
+      "\n[rls] The RLS policy tests were SKIPPED. They did not pass — they did not run.\n",
+  );
+}
+
+describe("RLS policies", () => {
+  describe.runIf(available)("household setup", () => {
+    it("puts both partners in one household", async () => {
+      const { rows } = await alice.query<{ count: string }>(
+        "select count(*)::text as count from public.household_members where household_id = $1",
+        [householdId],
+      );
+      expect(rows[0]?.count).toBe("2");
+    });
+
+    it("issues an unambiguous join code", () => {
+      expect(joinCode).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/);
+    });
+
+    it("refuses a join code that does not exist", async () => {
+      await expect(
+        bob.query("select * from public.join_household($1)", ["ZZZZZZ"]),
+      ).rejects.toThrow(/does not match any household/i);
+    });
+  });
+
+  describe.runIf(available)("the shared kitchen", () => {
+    it("REQUIRED: a second user in the household can read pantry_items", async () => {
+      await alice.query(
+        `insert into public.pantry_items (household_id, name, quantity, location, expires_on)
+         values ($1, 'Chicken thighs', '2 lb', 'fridge', current_date + 3)`,
+        [householdId],
+      );
+
+      const { rows } = await bob.query<{ name: string }>(
+        "select name from public.pantry_items",
+      );
+      expect(rows.map((r) => r.name)).toContain("Chicken thighs");
+    });
+
+    it("lets the second user add to the kitchen too", async () => {
+      await bob.query(
+        `insert into public.pantry_items (household_id, name, quantity, location)
+         values ($1, 'Sourdough', '1 loaf', 'pantry')`,
+        [householdId],
+      );
+      const { rows } = await alice.query("select name from public.pantry_items where name = 'Sourdough'");
+      expect(rows).toHaveLength(1);
+    });
+
+    it("shares the food library across the household", async () => {
+      await alice.query(
+        `insert into public.foods (household_id, name, kcal, protein_g, carb_g, fat_g, times_logged)
+         values ($1, 'Greek yogurt', 130, 22, 8, 0, 3)`,
+        [householdId],
+      );
+      const { rows } = await bob.query("select name from public.foods");
+      expect(rows).toHaveLength(1);
+    });
+
+    it("dedupes foods case-insensitively", async () => {
+      await expect(
+        bob.query(
+          `insert into public.foods (household_id, name, kcal) values ($1, 'greek YOGURT', 130)`,
+          [householdId],
+        ),
+      ).rejects.toThrow(/duplicate key|unique/i);
+    });
+
+    it("hides the kitchen from someone in a different household", async () => {
+      const { rows } = await carol.query("select name from public.pantry_items");
+      expect(rows).toHaveLength(0);
+    });
+
+    it("stops an outsider writing into someone else's kitchen", async () => {
+      await expect(
+        carol.query(
+          `insert into public.pantry_items (household_id, name) values ($1, 'Sabotage')`,
+          [householdId],
+        ),
+      ).rejects.toThrow(/row-level security/i);
+    });
+  });
+
+  describe.runIf(available)("private logs", () => {
+    it("REQUIRED: a second user in the household cannot read the first user's weigh_ins", async () => {
+      await alice.query(
+        "insert into public.weigh_ins (user_id, logged_on, weight_lb) values ($1, current_date, 168.4)",
+        [aliceId],
+      );
+
+      // Alice sees her own weigh-in...
+      const mine = await alice.query("select weight_lb from public.weigh_ins");
+      expect(mine.rows).toHaveLength(1);
+
+      // ...and Bob, who shares her kitchen, sees nothing at all.
+      const partner = await bob.query("select weight_lb from public.weigh_ins");
+      expect(partner.rows).toHaveLength(0);
+
+      // Not even when he asks for her row by id.
+      const targeted = await bob.query("select weight_lb from public.weigh_ins where user_id = $1", [
+        aliceId,
+      ]);
+      expect(targeted.rows).toHaveLength(0);
+    });
+
+    it("keeps food entries private", async () => {
+      await alice.query(
+        `insert into public.entries (user_id, logged_on, name, kcal, protein_g, carb_g, fat_g)
+         values ($1, current_date, 'Scrambled eggs', 220, 14, 2, 16)`,
+        [aliceId],
+      );
+      const { rows } = await bob.query("select name from public.entries");
+      expect(rows).toHaveLength(0);
+    });
+
+    it("keeps movement private", async () => {
+      await alice.query(
+        "insert into public.movement (user_id, logged_on, kind, minutes) values ($1, current_date, 'Walk', 30)",
+        [aliceId],
+      );
+      const { rows } = await bob.query("select kind from public.movement");
+      expect(rows).toHaveLength(0);
+    });
+
+    it("keeps profiles private", async () => {
+      await alice.query(
+        "update public.profiles set kcal_target = 1850 where user_id = $1",
+        [aliceId],
+      );
+      const { rows } = await bob.query("select kcal_target from public.profiles");
+      // Bob sees exactly one profile: his own, with no target set.
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toEqual({ kcal_target: null });
+    });
+
+    it("refuses to write a log row on someone else's behalf", async () => {
+      await expect(
+        bob.query(
+          "insert into public.weigh_ins (user_id, logged_on, weight_lb) values ($1, current_date - 1, 150)",
+          [aliceId],
+        ),
+      ).rejects.toThrow(/row-level security/i);
+    });
+
+    it("refuses to update someone else's row", async () => {
+      const { rowCount } = await bob.query(
+        "update public.weigh_ins set weight_lb = 999 where user_id = $1",
+        [aliceId],
+      );
+      expect(rowCount).toBe(0);
+    });
+
+    it("keeps AI usage private", async () => {
+      await alice.query(
+        `insert into public.ai_usage (user_id, route, model, input_tokens, output_tokens)
+         values ($1, '/api/estimate', 'claude-sonnet-4-6', 400, 120)`,
+        [aliceId],
+      );
+      const { rows } = await bob.query("select route from public.ai_usage");
+      expect(rows).toHaveLength(0);
+    });
+  });
+
+  describe.runIf(available)("household membership", () => {
+    it("lets partners see each other", async () => {
+      const { rows } = await bob.query("select user_id from public.household_members");
+      expect(rows).toHaveLength(2);
+    });
+
+    it("hides membership from outsiders", async () => {
+      const { rows } = await carol.query(
+        "select user_id from public.household_members where household_id = $1",
+        [householdId],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("does not let a client insert itself into a household directly", async () => {
+      await expect(
+        carol.query(
+          "insert into public.household_members (household_id, user_id) values ($1, $2)",
+          [householdId, carolId],
+        ),
+      ).rejects.toThrow(/row-level security|permission denied/i);
+    });
+
+    it("refuses to put someone in a second household", async () => {
+      await expect(
+        carol.query("select * from public.join_household($1)", [joinCode]),
+      ).rejects.toThrow(/already in a household/i);
+    });
+  });
+});
