@@ -1,4 +1,9 @@
+import { config as loadEnv } from "dotenv";
 import { defineConfig } from "vitest/config";
+
+// Pick up TEST_DATABASE_URL from .env.local so `npm test` works without
+// having to prefix the command with the connection string every time.
+loadEnv({ path: ".env.local", quiet: true });
 
 export default defineConfig({
   test: {

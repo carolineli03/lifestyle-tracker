@@ -1,0 +1,195 @@
+/**
+ * Hand-maintained mirror of supabase/migrations.
+ *
+ * Regenerate from a live database instead of editing by hand once the project
+ * is linked:  npm run db:types
+ *
+ * Every row shape below is a `type`, never an `interface`. That is load-bearing,
+ * not style: supabase-js constrains each table to Record<string, unknown>, and
+ * TypeScript only grants implicit index signatures to type aliases. Declare one
+ * of these as an interface and the whole schema quietly fails the constraint —
+ * the client falls back to an untyped schema and `.rpc()` starts reporting its
+ * arguments as `undefined`, nowhere near the actual mistake.
+ */
+
+export type StorageLocation = "fridge" | "freezer" | "pantry";
+export type HouseholdRole = "owner" | "member";
+export type SexAtBirth = "female" | "male";
+
+export type Household = {
+  id: string;
+  name: string;
+  join_code: string;
+  created_at: string;
+};
+
+export type HouseholdMember = {
+  household_id: string;
+  user_id: string;
+  role: HouseholdRole;
+  created_at: string;
+};
+
+export type Profile = {
+  user_id: string;
+  sex_at_birth: SexAtBirth | null;
+  age: number | null;
+  height_inches: number | null;
+  activity_factor: number | null;
+  target_rate_lb_week: number | null;
+  kcal_target: number | null;
+  protein_target: number | null;
+  carb_target: number | null;
+  fat_target: number | null;
+  start_weight: number | null;
+  goal_weight: number | null;
+  goal_date: string | null;
+  weekly_movement_goal: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PantryItem = {
+  household_id: string;
+  id: string;
+  name: string;
+  quantity: string | null;
+  location: StorageLocation;
+  expires_on: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type Food = {
+  household_id: string;
+  id: string;
+  name: string;
+  kcal: number;
+  protein_g: number;
+  carb_g: number;
+  fat_g: number;
+  times_logged: number;
+  last_logged_at: string | null;
+  created_at: string;
+};
+
+export type Entry = {
+  user_id: string;
+  id: string;
+  logged_on: string;
+  name: string;
+  kcal: number;
+  protein_g: number;
+  carb_g: number;
+  fat_g: number;
+  food_id: string | null;
+  created_at: string;
+};
+
+export type Movement = {
+  user_id: string;
+  id: string;
+  logged_on: string;
+  kind: string;
+  minutes: number;
+  created_at: string;
+};
+
+export type WeighIn = {
+  user_id: string;
+  id: string;
+  logged_on: string;
+  weight_lb: number;
+  created_at: string;
+};
+
+export type AiUsage = {
+  user_id: string;
+  id: string;
+  route: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  ok: boolean;
+  created_at: string;
+};
+
+type Row<T> = T;
+type Insert<T, Optional extends keyof T> = Omit<T, Optional> & Partial<Pick<T, Optional>>;
+
+export type Database = {
+  public: {
+    Tables: {
+      households: {
+        Row: Row<Household>;
+        Insert: Insert<Household, "id" | "join_code" | "created_at">;
+        Update: Partial<Household>;
+        Relationships: [];
+      };
+      household_members: {
+        Row: Row<HouseholdMember>;
+        Insert: Insert<HouseholdMember, "role" | "created_at">;
+        Update: Partial<HouseholdMember>;
+        Relationships: [];
+      };
+      profiles: {
+        Row: Row<Profile>;
+        Insert: Insert<Profile, Exclude<keyof Profile, "user_id">>;
+        Update: Partial<Profile>;
+        Relationships: [];
+      };
+      pantry_items: {
+        Row: Row<PantryItem>;
+        Insert: Insert<PantryItem, "id" | "created_at" | "created_by" | "quantity" | "expires_on" | "location">;
+        Update: Partial<PantryItem>;
+        Relationships: [];
+      };
+      foods: {
+        Row: Row<Food>;
+        Insert: Insert<
+          Food,
+          "id" | "created_at" | "times_logged" | "last_logged_at" | "kcal" | "protein_g" | "carb_g" | "fat_g"
+        >;
+        Update: Partial<Food>;
+        Relationships: [];
+      };
+      entries: {
+        Row: Row<Entry>;
+        Insert: Insert<Entry, "id" | "created_at" | "food_id" | "logged_on">;
+        Update: Partial<Entry>;
+        Relationships: [];
+      };
+      movement: {
+        Row: Row<Movement>;
+        Insert: Insert<Movement, "id" | "created_at" | "logged_on">;
+        Update: Partial<Movement>;
+        Relationships: [];
+      };
+      weigh_ins: {
+        Row: Row<WeighIn>;
+        Insert: Insert<WeighIn, "id" | "created_at" | "logged_on">;
+        Update: Partial<WeighIn>;
+        Relationships: [];
+      };
+      ai_usage: {
+        Row: Row<AiUsage>;
+        Insert: Insert<AiUsage, "id" | "created_at" | "input_tokens" | "output_tokens" | "ok">;
+        Update: Partial<AiUsage>;
+        Relationships: [];
+      };
+    };
+    Views: Record<never, never>;
+    Functions: {
+      create_household: { Args: { p_name: string }; Returns: Household };
+      join_household: { Args: { p_code: string }; Returns: Household };
+      current_household_id: { Args: Record<string, never>; Returns: string | null };
+      is_household_member: { Args: { p_household_id: string }; Returns: boolean };
+    };
+    Enums: {
+      storage_location: StorageLocation;
+      household_role: HouseholdRole;
+      sex_at_birth: SexAtBirth;
+    };
+    CompositeTypes: Record<never, never>;
+  };
+};
