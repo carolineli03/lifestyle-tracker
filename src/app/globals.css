@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+   ---------------------------------------------------------------------------
+   Three declarations per palette, in this order, and the order matters:
+
+     1. :root                              -> light, the baseline
+     2. @media (prefers-color-scheme: dark) -> dark, unless overridden to light
+     3. :root[data-theme="dark"]           -> the manual override wins
+
+   The :not([data-theme="light"]) guard in (2) is what lets someone on a
+   dark-mode phone force the light theme.
+--------------------------------------------------------------------------- */
+
+:root {
+  --paper: #f3f5f0;
+  --card: #ffffff;
+  --ink: #16211b;
+  --muted: #6e7f74;
+  --pine: #245c41;
+  --marigold: #c98a00;
+  --tomato: #c6402b;
+
+  /* Derived, not part of the specified palette: hairlines and tinted fills. */
+  --line: #dfe5db;
+  --pine-wash: #245c410f;
+  --marigold-wash: #c98a0014;
+  --tomato-wash: #c6402b14;
+  --on-pine: #f3f5f0;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1613;
+    --card: #18231e;
+    --ink: #e8efe9;
+    --muted: #93a69a;
+    --pine: #63b287;
+    --marigold: #ebb43a;
+    --tomato: #ec7b65;
+
+    --line: #26332c;
+    --pine-wash: #63b28718;
+    --marigold-wash: #ebb43a1a;
+    --tomato-wash: #ec7b6518;
+    --on-pine: #0f1613;
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #0f1613;
+  --card: #18231e;
+  --ink: #e8efe9;
+  --muted: #93a69a;
+  --pine: #63b287;
+  --marigold: #ebb43a;
+  --tomato: #ec7b65;
+
+  --line: #26332c;
+  --pine-wash: #63b28718;
+  --marigold-wash: #ebb43a1a;
+  --tomato-wash: #ec7b6518;
+  --on-pine: #0f1613;
+
+  color-scheme: dark;
+}
+
+/* Expose the tokens to Tailwind. `inline` keeps them as var() references so
+   the theme switch is a single custom-property swap, not a class rebuild. */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-pine: var(--pine);
+  --color-marigold: var(--marigold);
+  --color-tomato: var(--tomato);
+  --color-line: var(--line);
+  --color-pine-wash: var(--pine-wash);
+  --color-marigold-wash: var(--marigold-wash);
+  --color-tomato-wash: var(--tomato-wash);
+  --color-on-pine: var(--on-pine);
+
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 14px;
+  --radius-field: 10px;
+  --radius-pill: 999px;
+
+  /* The one place the design is allowed to shout. */
+  --text-hero: 68px;
+  --text-hero--line-height: 1;
+  --text-hero--letter-spacing: -0.03em;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    /* Every figure in this app is a quantity that gets compared against
+       another figure, so tabular numerals are the default, not an opt-in. */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.015em;
+  }
+
+  /* Keyboard focus must always be visible; pointer focus stays quiet. */
+  :focus-visible {
+    outline: 2px solid var(--pine);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  /* 44px is the minimum comfortable tap target. Applied to controls rather
+     than every element so text links inside prose are not stretched. */
+  button,
+  [role="button"],
+  input:not([type="checkbox"]):not([type="radio"]),
+  select {
+    min-height: 44px;
+  }
+
+  ::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Component shorthands
+   Small enough to keep here rather than reaching for a component library.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .card {
+    background-color: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+  }
+
+  .field {
+    width: 100%;
+    background-color: var(--card);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-field);
+    padding: 0.625rem 0.75rem;
+    font-size: 1rem;
+  }
+
+  .field:focus {
+    border-color: var(--pine);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-field);
+    padding: 0.625rem 1rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background-color: var(--pine);
+    color: var(--on-pine);
+  }
+
+  .btn-quiet {
+    background-color: var(--card);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background-color: var(--card);
+    color: var(--muted);
+    padding: 0.4375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    min-height: 36px;
+    cursor: pointer;
+  }
+
+  .chip[aria-pressed="true"],
+  .chip[data-active="true"] {
+    background-color: var(--pine);
+    border-color: var(--pine);
+    color: var(--on-pine);
+  }
+}
