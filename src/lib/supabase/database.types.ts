@@ -42,6 +42,7 @@ export type Profile = {
   carb_target: number | null;
   fat_target: number | null;
   start_weight: number | null;
+  start_date: string | null;
   goal_weight: number | null;
   goal_date: string | null;
   weekly_movement_goal: number | null;

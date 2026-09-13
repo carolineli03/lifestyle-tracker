@@ -26,6 +26,33 @@ the browser never makes a request to Google.
 
 ## Getting started
 
+### First-time setup checklist
+
+The short version, for a brand-new Supabase project and Vercel account. The
+numbered sections below explain each step.
+
+1. **Supabase → New project.** Save the database password somewhere; `db push`
+   asks for it.
+2. **Keys.** Project Settings → API. Copy the *Project URL* and the *anon* (or
+   *publishable*) key into `.env.local`. Never use the `service_role`/secret key.
+3. **Auth redirects.** Authentication → URL Configuration:
+   - Site URL: `http://localhost:3000` (change it to the Vercel origin once
+     deployed)
+   - Redirect URLs: `http://localhost:3000/auth/callback` and
+     `https://<your-vercel-domain>/auth/callback`
+4. **Schema.** Without installing the CLI globally:
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <ref>   # <ref> is the subdomain of the Project URL
+   npx supabase db push
+   ```
+5. **Run locally.** `npm run dev`, open <http://localhost:3000>, sign in by
+   magic link.
+6. **Vercel.** Import the GitHub repo, then add `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL` (the production
+   origin) and `ANTHROPIC_API_KEY` (unprefixed, server-only) under Settings →
+   Environment Variables. Redeploy.
+
 ### 1. Prerequisites
 
 - Node.js 20 or newer
@@ -197,8 +224,14 @@ Two suites matter, because they are the two places where a bug does real damage:
   timestamp and dinner logged at 6pm lands on tomorrow.
 - **Expiry maths** (`tests/expiry.test.ts`) — badge thresholds, sort order,
   and day counting across month ends and daylight-saving shifts.
-- **Target maths** — Mifflin-St Jeor, the calorie floor, and the macro split.
-  *(Arrives with the Progress tab in phase 4.)*
+- **Target maths** (`tests/targets.test.ts`, `tests/trends.test.ts`) —
+  Mifflin-St Jeor against hand-worked values, the `max(1,200, BMR)` floor and
+  the real weekly rate it produces, the protein cap, the goal-pace line and the
+  seven-day movement window.
+
+When the RLS suite skips, a banner prints after the summary
+(`tests/support/skip-banner.ts`). Vitest hides console output from an
+all-skipped file, so without it "1 skipped" looks like a clean run.
 
 The RLS suite needs a Postgres it is allowed to `CREATE DATABASE` on. Set
 `TEST_DATABASE_URL` in `.env.local` (Vitest reads it from there) or pass it
@@ -297,6 +330,6 @@ inline script, so there is no flash of the wrong theme.
 | 1 | Scaffold, migrations, RLS, auth, tab shell, design tokens | **Done** |
 | 2 | Today — food entry, food library, movement, weigh-ins | **Done** |
 | 3 | Fridge — inventory, shopping list, expiry badges, filters | **Done** |
-| 4 | Progress — chart, stats, target calculator | Not started |
+| 4 | Progress — chart, stats, target calculator | Built; signed-in browser check pending |
 | 5 | AI routes — estimate, sort groceries, cook, prep plan | Not started |
 | 6 | PWA packaging, offline reads, Vercel deploy | Not started |
