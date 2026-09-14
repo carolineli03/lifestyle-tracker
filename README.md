@@ -16,7 +16,7 @@ it is covered by tests — see [Running the tests](#running-the-tests).
 | Framework | Next.js 16, App Router, TypeScript strict | Deployed on Vercel |
 | Database & auth | Supabase (Postgres, email magic link, RLS) | All authorisation lives in SQL |
 | Styling | Tailwind CSS v4 | Design tokens as CSS variables, no component library |
-| AI | Anthropic API (`claude-sonnet-4-6`) | Server-side route handlers only |
+| AI | Anthropic API (`claude-sonnet-5`, structured outputs) | Server-side route handlers only |
 | Tests | Vitest | Target maths and RLS policies |
 
 No analytics, no third-party scripts. Fonts are self-hosted by `next/font`, so
@@ -228,6 +228,10 @@ Two suites matter, because they are the two places where a bug does real damage:
   Mifflin-St Jeor against hand-worked values, the `max(1,200, BMR)` floor and
   the real weekly rate it produces, the protein cap, the goal-pace line and the
   seven-day movement window.
+- **AI plumbing** (`tests/ai-*.test.ts`) — tolerant JSON parsing, what the
+  prompts contain and in what order, cost maths, and the shared runner against
+  a fake model: refusal, truncation, unusable replies, the hourly limit, a
+  missing or rejected key. No test calls the real API.
 
 When the RLS suite skips, a banner prints after the summary
 (`tests/support/skip-banner.ts`). Vitest hides console output from an
@@ -251,20 +255,101 @@ run is not a passing run — check the output before trusting it.
 
 ---
 
+## The AI features
+
+Four route handlers under `src/app/api/`, all on `claude-sonnet-5`:
+
+| Route | Used by | What it returns |
+|---|---|---|
+| `POST /api/estimate` | Today → Describe it | Items with kcal / protein / carbs / fat, as editable drafts |
+| `POST /api/sort-groceries` | Fridge → Bulk add | Items with a location and shelf life, as an editable list |
+| `POST /api/cook` | Cook → three ideas | Three meals from the kitchen, soonest use-by first |
+| `POST /api/prep-plan` | Cook → Sunday prep | 2–3 batch components for N lunches |
+
+They share one runner, `src/lib/ai/core.ts`. Rules worth remembering:
+
+- **Nothing is written from a model reply without you confirming it**, except
+  "Log this" on a cook idea, which is itself the confirmation.
+- **Replies are validated, never trusted.** The request carries a JSON schema
+  (structured outputs) built from the Zod schemas in `src/lib/ai/schemas.ts`.
+  The reply is still stripped of code fences and checked against Zod. If it
+  doesn't fit, the route returns an error. It never substitutes numbers.
+- **Cook and prep plan read the kitchen on the server** through your own RLS.
+  The browser only sends its local date.
+- **Rate limit:** 20 calls per person per rolling hour, counted from
+  `ai_usage` (`AI_CALLS_PER_HOUR` in `schemas.ts`).
+- **Cost:** every call, including failures, logs its tokens to `ai_usage`.
+  Progress shows "AI this month" from those rows at list prices. For the
+  household total, run this in the Supabase SQL editor (it bypasses RLS):
+  ```sql
+  select date_trunc('month', created_at) as month, count(*) as calls,
+         sum(input_tokens) as input_tokens, sum(output_tokens) as output_tokens,
+         round(sum(input_tokens) * 2.0 / 1e6 + sum(output_tokens) * 10.0 / 1e6, 2) as usd
+  from ai_usage group by 1 order by 1 desc;
+  ```
+- **The key stays on the server.** `ANTHROPIC_API_KEY` is read in exactly one
+  place, `src/lib/env.server.ts`, behind `import "server-only"`. If a client
+  component imports that file, the build fails.
+
+Without a key the app works fully by hand. The AI buttons say "AI features
+aren't set up yet" instead of spinning.
+
+---
+
+## Installing it and offline use
+
+It's a PWA. On iPhone, open it in Safari → Share → **Add to Home Screen**. On
+Android, Chrome offers **Install app**.
+
+`public/sw.js` is a small hand-written service worker, registered only in
+production builds (`src/components/ServiceWorker.tsx`):
+
+- `/_next/static` and `/icons` are cached permanently (cache-first).
+- Page loads and Supabase table reads are network-first. When there's no
+  signal, you get the last copy loaded, and a banner says you're offline.
+- Writes, `/api/*`, auth routes and Supabase auth are never cached or
+  replayed. A save attempted offline fails and says so.
+- **Signing out deletes the page and data caches.**
+- Nothing is precached, so a tab works offline once you've opened it online
+  at least once.
+
+To change the caching strategy, bump `VERSION` at the top of `sw.js`. The next
+visit drops the old caches. The icons come from `scripts/make-icons.mjs`;
+edit the SVG there and run `node scripts/make-icons.mjs`.
+
+To test it locally, use a production build (`npm run build && npm start`). In
+`next dev` the worker is deliberately not registered.
+
+---
+
 ## Deploying
 
-1. Push the repo to GitHub and import it at <https://vercel.com/new>.
-2. Add the four environment variables above to the Vercel project
-   (Settings → Environment Variables). Set `NEXT_PUBLIC_SITE_URL` to the
-   production origin, e.g. `https://lifestyle-tracker.vercel.app`.
-   `ANTHROPIC_API_KEY` goes in as a plain server variable — do not prefix it.
-3. Add `https://<your-domain>/auth/callback` to the Supabase redirect URL list.
-4. Apply migrations to the production project: `npm run db:push`.
+Order matters: **database first, then the app.**
 
-Vercel builds with `npm run build`. There is no build step that needs the
-database, so a deploy cannot be blocked by a migration that has not run yet —
-but the app will error at runtime if the schema is behind, so push migrations
-first.
+1. **Migrations to production:** `npx supabase link --project-ref <ref>`, then
+   `npx supabase db push`.
+2. **Get the code on `main`** in GitHub.
+3. **Vercel:** <https://vercel.com/new> → import `carolineli03/lifestyle-tracker`.
+   The framework preset is detected as Next.js; leave the build settings alone.
+4. **Environment variables** (Vercel → Settings → Environment Variables,
+   Production and Preview):
+   | Name | Value |
+   |---|---|
+   | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon / publishable key |
+   | `NEXT_PUBLIC_SITE_URL` | The production origin, e.g. `https://lifestyle-tracker.vercel.app` (no trailing slash) |
+   | `ANTHROPIC_API_KEY` | Your Anthropic key, **unprefixed** |
+
+   `NEXT_PUBLIC_*` values are baked in at build time. If you change one,
+   redeploy.
+5. **Supabase → Authentication → URL Configuration:** set the Site URL to the
+   production origin, and add `https://<prod-domain>/auth/callback` to the
+   redirect URLs. Keep the localhost entries for local development.
+6. **Deploy**, then sign in on your phone and Add to Home Screen.
+
+Nothing in the build touches the database, so a deploy is never blocked by an
+unrun migration. The app will fail at runtime if the schema is behind, which is
+why migrations come first.
 
 ---
 
@@ -275,17 +360,22 @@ src/
   app/
     (app)/            the four tabs, behind the auth + household gate
       today/ fridge/ cook/ progress/
-    api/              AI route handlers (phase 5)
+    api/              the four AI route handlers
+    manifest.ts       PWA manifest (/manifest.webmanifest)
     auth/             magic-link callback, sign-out, error page
     login/            email entry
     onboarding/       start or join a household
     globals.css       design tokens and base styles
   components/         shared UI, no component library
   lib/
-    env.ts            environment access with readable failures
+    ai/               schemas, prompts, the shared runner, browser client
+    env.ts            public environment access with readable failures
+    env.server.ts     ANTHROPIC_API_KEY — server-only
     household.ts      the one query every authenticated page needs
     supabase/         browser, server and proxy clients + hand-kept types
   proxy.ts            session refresh and the signed-in redirect
+public/sw.js          service worker (offline reads)
+public/icons/         PWA icons, generated by scripts/make-icons.mjs
 supabase/migrations/  the schema, in order
 tests/                Vitest suites and the database harness
 ```
@@ -331,5 +421,5 @@ inline script, so there is no flash of the wrong theme.
 | 2 | Today — food entry, food library, movement, weigh-ins | **Done** |
 | 3 | Fridge — inventory, shopping list, expiry badges, filters | **Done** |
 | 4 | Progress — chart, stats, target calculator | Built; signed-in browser check pending |
-| 5 | AI routes — estimate, sort groceries, cook, prep plan | Not started |
-| 6 | PWA packaging, offline reads, Vercel deploy | Not started |
+| 5 | AI routes — estimate, sort groceries, cook, prep plan | Built; live check pending Supabase + Anthropic keys |
+| 6 | PWA packaging, offline reads, Vercel deploy | PWA built and checked locally; deploy pending Vercel import |

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -19,6 +20,14 @@ export const metadata: Metadata = {
   title: "Lifestyle Tracker",
   description: "What's in the kitchen, what you ate, and what to cook next.",
   applicationName: "Lifestyle Tracker",
+  icons: {
+    icon: [
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: { capable: true, title: "Lifestyle", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -52,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
         {children}
+        <ServiceWorker />
       </body>
     </html>
   );
