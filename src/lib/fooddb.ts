@@ -43,7 +43,8 @@ function finite(v: unknown): number | null {
 export function tidyName(name: string): string {
   const trimmed = name.trim().replace(/\s+/g, " ");
   if (trimmed !== trimmed.toUpperCase()) return trimmed;
-  return trimmed.toLowerCase().replace(/\b([a-z])/g, (c) => c.toUpperCase());
+  // Capitalise after a space, hyphen, slash or bracket, but not after an apostrophe: "Trader Joe's", not "Joe'S".
+  return trimmed.toLowerCase().replace(/(^|[\s\-/(&])([a-z])/g, (_m, sep: string, c: string) => sep + c.toUpperCase());
 }
 
 // --- Open Food Facts ---------------------------------------------------------
@@ -161,6 +162,15 @@ export function normaliseUsda(f: UsdaFood): DbFood | null {
       sodium_mg: at(USDA.sodium) === null ? null : r0(at(USDA.sodium) as number),
     },
   };
+}
+
+/**
+ * USDA mixes generic foods with branded products whose names merely contain
+ * the search words ("Greek yogurt" coating on dried cranberries). Generic
+ * Foundation/SR Legacy entries go first; the API's own order is kept otherwise.
+ */
+export function genericFirst(foods: readonly DbFood[]): DbFood[] {
+  return [...foods].sort((a, b) => Number(a.sourceLabel !== "USDA") - Number(b.sourceLabel !== "USDA"));
 }
 
 /** Interleave the two sources and drop near-duplicates (same name and brand). */

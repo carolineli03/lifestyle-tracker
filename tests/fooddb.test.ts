@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { barcodeVariants, mergeResults, normaliseOff, normaliseUsda, tidyName } from "../src/lib/fooddb.js";
+import { barcodeVariants, genericFirst, mergeResults, normaliseOff, normaliseUsda, tidyName } from "../src/lib/fooddb.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string) => JSON.parse(readFileSync(path.join(here, "fixtures", name), "utf8"));
@@ -85,6 +85,8 @@ describe("helpers", () => {
   it("title-cases only SHOUTED names", () => {
     expect(tidyName("GREEK YOGURT PLAIN")).toBe("Greek Yogurt Plain");
     expect(tidyName("Yogurt, Greek, plain")).toBe("Yogurt, Greek, plain");
+    expect(tidyName("TRADER JOE'S GREEK YOGURT")).toBe("Trader Joe's Greek Yogurt");
+    expect(tidyName("LOW-FAT (PLAIN) YOGURT")).toBe("Low-Fat (Plain) Yogurt");
   });
 
   it("interleaves sources and drops duplicates", () => {
@@ -92,6 +94,11 @@ describe("helpers", () => {
     const b = normaliseOff(fixture("off-search.json").hits[0])!;
     const merged = mergeResults([a, a], [b]);
     expect(merged.map((f) => f.source)).toEqual(["usda", "off"]);
+  });
+
+  it("puts generic USDA foods ahead of branded ones", () => {
+    const [branded, legacy] = fixture("usda-search.json").foods.map(normaliseUsda);
+    expect(genericFirst([branded, legacy]).map((f) => f?.sourceLabel)).toEqual(["USDA", "USDA (branded)"]);
   });
 
   it("tries UPC-A and EAN-13 forms of a barcode", () => {

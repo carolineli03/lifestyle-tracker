@@ -1,7 +1,7 @@
 import "server-only";
 import { supabaseServer } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/env.server";
-import { barcodeVariants, normaliseOff, normaliseUsda, type DbFood, type OffProduct, type UsdaFood } from "@/lib/fooddb";
+import { barcodeVariants, genericFirst, normaliseOff, normaliseUsda, type DbFood, type OffProduct, type UsdaFood } from "@/lib/fooddb";
 
 /**
  * Server side of the food database: the outside calls happen here, not in the
@@ -39,7 +39,7 @@ export async function searchUsda(query: string): Promise<DbFood[]> {
   url.searchParams.set("pageSize", "10");
   url.searchParams.set("dataType", "Foundation,SR Legacy,Branded");
   const body = (await getJson(url.toString())) as { foods?: UsdaFood[] };
-  return (body.foods ?? []).map(normaliseUsda).filter((f): f is DbFood => f !== null);
+  return genericFirst((body.foods ?? []).map(normaliseUsda).filter((f): f is DbFood => f !== null));
 }
 
 export async function searchOff(query: string): Promise<DbFood[]> {
