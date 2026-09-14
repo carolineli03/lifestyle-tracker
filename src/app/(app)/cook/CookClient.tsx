@@ -6,6 +6,7 @@ import { postAi } from "@/lib/ai/client";
 import { CookResponse, MEAL_TYPES, PrepPlanResponse, type MealIdea, type MealType, type PrepPlan } from "@/lib/ai/schemas";
 import { todayIso } from "@/lib/date";
 import { logEntry } from "@/lib/today";
+import { defaultMeal } from "@/lib/meals";
 import { ErrorNote } from "@/components/ErrorNote";
 import { WeekPlanner } from "@/components/cook/WeekPlanner";
 import { RecipeBook } from "@/components/cook/RecipeBook";
@@ -169,12 +170,13 @@ function Ideas({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: readonl
     setError(null);
     try {
       // A one-off meal, not a staple: keep it out of the shared food library.
-      await logEntry(
-        todayIso(),
-        idea.name,
-        { kcal: idea.kcal, protein_g: idea.protein, carb_g: idea.carbs, fat_g: idea.fat },
-        false,
-      );
+      await logEntry(todayIso(), {
+        name: idea.name,
+        macros: { kcal: idea.kcal, protein_g: idea.protein, carb_g: idea.carbs, fat_g: idea.fat },
+        // The chip picked when asking, or the meal the clock suggests for "Any".
+        meal: meal === "any" ? defaultMeal() : meal,
+        remember: false,
+      });
       setLogged((l) => ({ ...l, [index]: "done" }));
     } catch (cause) {
       setLogged((l) => {

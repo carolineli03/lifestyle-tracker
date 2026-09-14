@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { round1, scalePortion, type MacroTotals } from "@/lib/totals";
+import { NO_NUTRIENTS, NUTRIENT_FIELDS, scaleNutrients, type Nutrients } from "@/lib/nutrients";
 
 /**
  * An editable staging area. Nothing here is in the log yet.
@@ -24,12 +26,21 @@ export type Draft = {
   remember: boolean;
   /** What one serving is ("Serving: 2/3 cup (55g)"), or that it's a photo estimate. */
   note?: string;
+  /** Fiber, sugar and sodium for ONE serving; null means unknown. */
+  nutrients?: Nutrients;
+  /** Carried to the food library so the next scan or search knows the serving. */
+  servingLabel?: string | null;
+  barcode?: string | null;
 };
 
 export const EMPTY_MACROS: MacroTotals = { kcal: 0, protein_g: 0, carb_g: 0, fat_g: 0 };
 
 export function draftTotals(draft: Draft): MacroTotals {
   return scalePortion(draft.base, draft.servings);
+}
+
+export function draftNutrients(draft: Draft): Nutrients {
+  return scaleNutrients(draft.nutrients ?? NO_NUTRIENTS, draft.servings);
 }
 
 type Field = keyof MacroTotals;
@@ -149,6 +160,8 @@ export function DraftTable({
               ))}
             </div>
 
+            <MoreNutrients draft={draft} onChange={(next) => onChange(draft.key, next)} />
+
             <label className="mt-3 flex items-center gap-2 text-[13px] text-muted">
               <input
                 type="checkbox"
@@ -162,5 +175,52 @@ export function DraftTable({
         );
       })}
     </ul>
+  );
+}
+
+/** Fiber, sugar, sodium: collapsed unless known, since most hand-typed foods won't have them. Blank means unknown, not zero. */
+function MoreNutrients({ draft, onChange }: { draft: Draft; onChange: (next: Draft) => void }) {
+  const known = NUTRIENT_FIELDS.some((f) => draft.nutrients?.[f.key] != null);
+  const [open, setOpen] = useState(known);
+  const totals = draftNutrients(draft);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="mt-2 text-[13px] font-semibold underline"
+        style={{ color: "var(--pine)", minHeight: 32 }}
+        onClick={() => setOpen(true)}
+      >
+        + Fiber, sugar, sodium
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 grid grid-cols-3 gap-2">
+      {NUTRIENT_FIELDS.map((f) => (
+        <div key={f.key}>
+          <label htmlFor={`${f.key}-${draft.key}`} className="block text-[11px] font-semibold text-muted">
+            {f.label} ({f.unit})
+          </label>
+          <input
+            id={`${f.key}-${draft.key}`}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            placeholder="?"
+            className="field mt-1 px-2"
+            value={totals[f.key] ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const servings = draft.servings > 0 ? draft.servings : 1;
+              const perServing = raw === "" ? null : Math.round((Number(raw) / servings) * 10) / 10;
+              onChange({ ...draft, servings, nutrients: { ...(draft.nutrients ?? NO_NUTRIENTS), [f.key]: perServing } });
+            }}
+          />
+        </div>
+      ))}
+    </div>
   );
 }

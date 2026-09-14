@@ -21,6 +21,7 @@ Break the description into the separate foods or drinks it mentions and return o
 - Honour stated amounts ("2 scrambled eggs" is one item covering both eggs). When no amount is given, assume a realistic US home portion.
 - kcal, protein, carbs and fat are for the whole item as described. Protein, carbs and fat are in grams. Round kcal to a whole number and grams to one decimal place.
 - Name each item plainly and include the amount when one was given, e.g. "2 scrambled eggs", "Sourdough toast with butter".
+- fiber_g, sugar_g (grams, one decimal) and sodium_mg (milligrams, whole number) are for the whole item too. Estimate them the same way; use null only when there's no sensible figure.
 - Near-zero items such as black coffee still get an item with their small values.
 - If the text contains no food or drink, return an empty items list.
 
@@ -30,14 +31,14 @@ export const PHOTO_SYSTEM = `You read food photos for a personal food log.
 
 If the photo shows a Nutrition Facts (or similar nutrition information) panel:
 - Set source to "label" and return exactly one item.
-- Copy the numbers for ONE SERVING exactly as printed: calories, protein, total carbohydrate and total fat. If the panel has several columns (per serving and per container, or prepared and as sold), use the per-serving, as-sold column.
+- Copy the numbers for ONE SERVING exactly as printed: calories, protein, total carbohydrate, total fat, dietary fiber, total sugars (grams) and sodium (milligrams). Use null for any of fiber, sugars or sodium the panel doesn't show. If the panel has several columns (per serving and per container, or prepared and as sold), use the per-serving, as-sold column.
 - serving_size is the serving size exactly as printed, e.g. "2/3 cup (55g)".
 - name is the product name if it is visible, otherwise a short plain description such as "Granola bar".
 
 If there is no nutrition panel but there is food or drink:
 - Set source to "estimate" and return one item per distinct food visible.
 - Estimate the portion actually shown, using realistic US portion sizes. serving_size describes that portion, e.g. "about 1 cup".
-- kcal and grams of protein, carbs and fat are for that portion.
+- kcal and grams of protein, carbs and fat are for that portion, with fiber_g, sugar_g and sodium_mg estimated the same way (null if there's no sensible figure).
 
 Round kcal to a whole number and grams to one decimal place. If the photo contains no food, drink or nutrition label, set source to "estimate" and return an empty items list.
 

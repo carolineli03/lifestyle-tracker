@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseLoose, stripFences } from "../src/lib/ai/parse.js";
 import { CookResponse, EstimateResponse, ImportedRecipe, SortResponse } from "../src/lib/ai/schemas.js";
 
-const eggs = { name: "2 scrambled eggs", kcal: 182, protein: 12.2, carbs: 2, fat: 13.6 };
+const eggs = { name: "2 scrambled eggs", kcal: 182, protein: 12.2, carbs: 2, fat: 13.6, fiber_g: 0, sugar_g: 0.4, sodium_mg: 340 };
 
 describe("stripFences", () => {
   it("leaves bare JSON alone", () => {

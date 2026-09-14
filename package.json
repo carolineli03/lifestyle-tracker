@@ -15,12 +15,15 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:push": "supabase db push",
-    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts"
+    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
+    "prebuild": "node scripts/copy-zxing-wasm.mjs",
+    "predev": "node scripts/copy-zxing-wasm.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "barcode-detector": "^3.2.2",
     "next": "^16.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

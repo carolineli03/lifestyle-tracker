@@ -44,3 +44,6 @@ coverage/
 
 # Copy-paste bundles of supabase/migrations for the SQL Editor (regenerable)
 supabase/sql-editor/
+
+# Copied from node_modules at build time (scripts/copy-zxing-wasm.mjs)
+public/zxing/

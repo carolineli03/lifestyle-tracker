@@ -4,7 +4,7 @@ import { classifyError, runStructured, type AiDeps, type ModelReply } from "../s
 import { AI_CALLS_PER_DAY_ALL, AI_CALLS_PER_HOUR, EstimateResponse } from "../src/lib/ai/schemas.js";
 
 const NOW = new Date("2026-09-13T18:00:00Z");
-const eggs = { name: "2 scrambled eggs", kcal: 182, protein: 12.2, carbs: 2, fat: 13.6 };
+const eggs = { name: "2 scrambled eggs", kcal: 182, protein: 12.2, carbs: 2, fat: 13.6, fiber_g: 0, sugar_g: 0.4, sodium_mg: 340 };
 
 function harness(opts: { reply?: ModelReply; throws?: unknown; recent?: Date[]; everyone?: number; apiKey?: string | undefined } = {}) {
   const logged: Parameters<AiDeps["logUsage"]>[0][] = [];

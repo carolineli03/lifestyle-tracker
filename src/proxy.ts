@@ -60,6 +60,6 @@ export const config = {
      * becomes interactive. Production is unaffected, which makes it a nasty
      * one to notice. It also spares a Supabase round trip per asset request.
      */
-    "/((?!_next/|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/|favicon.ico|manifest.webmanifest|sw.js|icons/|zxing/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|wasm)$).*)",
   ],
 };

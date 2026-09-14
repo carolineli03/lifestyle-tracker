@@ -1,0 +1,31 @@
+{
+ "code": "0737628064502",
+ "product": {
+  "brands": "Simply Asia, Thai Kitchen",
+  "code": "0737628064502",
+  "nutriments": {
+   "carbohydrates_100g": 71.15,
+   "carbohydrates_serving": 37,
+   "energy-kcal_100g": 385,
+   "energy-kcal_serving": 200,
+   "fat_100g": 7.69,
+   "fat_serving": 4,
+   "fiber_100g": 1.9,
+   "fiber_serving": 0.988,
+   "proteins_100g": 9.62,
+   "proteins_serving": 5,
+   "sodium_100g": 0.288,
+   "sodium_serving": 0.15,
+   "sugars_100g": 13.46,
+   "sugars_serving": 7
+  },
+  "nutrition_data": "on",
+  "nutrition_data_per": "100g",
+  "nutrition_data_prepared_per": "100g",
+  "product_name": "Thai peanut noodle kit includes stir-fry rice noodles & thai peanut seasoning",
+  "serving_quantity": 52,
+  "serving_size": "0.333 PACKAGE (52 g)"
+ },
+ "status": 1,
+ "status_verbose": "product found"
+}

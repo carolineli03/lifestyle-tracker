@@ -34,6 +34,10 @@ export const EstimateItem = z.object({
   protein: z.number(),
   carbs: z.number(),
   fat: z.number(),
+  /** Null when there's no reasonable figure. */
+  fiber_g: z.number().nullable(),
+  sugar_g: z.number().nullable(),
+  sodium_mg: z.number().nullable(),
 });
 export const EstimateResponse = z.object({ items: z.array(EstimateItem) });
 export type EstimateItem = z.infer<typeof EstimateItem>;
@@ -65,6 +69,10 @@ export const PhotoItem = z.object({
   protein: z.number(),
   carbs: z.number(),
   fat: z.number(),
+  /** Null when there's no reasonable figure. */
+  fiber_g: z.number().nullable(),
+  sugar_g: z.number().nullable(),
+  sodium_mg: z.number().nullable(),
 });
 export const PhotoResponse = z.object({
   source: z.enum(["label", "estimate"]),

@@ -49,6 +49,8 @@ export function PhotoLog({
         result.items.map((item) => ({
           name: item.name,
           base: { kcal: Math.round(item.kcal), protein_g: round1(item.protein), carb_g: round1(item.carbs), fat_g: round1(item.fat) },
+          nutrients: { fiber_g: item.fiber_g, sugar_g: item.sugar_g, sodium_mg: item.sodium_mg },
+          servingLabel: fromLabel ? item.serving_size : null,
           servings: 1,
           remember: fromLabel,
           note: fromLabel

@@ -41,7 +41,7 @@ describe("PhotoResponse", () => {
   it("reads a label result with its printed serving size", () => {
     const reply = {
       source: "label",
-      items: [{ name: "Granola", serving_size: "2/3 cup (55g)", kcal: 240, protein: 6, carbs: 38, fat: 8 }],
+      items: [{ name: "Granola", serving_size: "2/3 cup (55g)", kcal: 240, protein: 6, carbs: 38, fat: 8, fiber_g: 4, sugar_g: 12, sodium_mg: null }],
     };
     expect(parseLoose(JSON.stringify(reply), PhotoResponse)).toEqual({ ok: true, value: reply });
   });
