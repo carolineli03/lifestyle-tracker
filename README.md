@@ -131,15 +131,42 @@ generic "that link didn't work" page.
 npm run dev            # http://localhost:3000
 ```
 
-Sign in with your email. Supabase sends the link; in a local stack it is
-captured by Inbucket at <http://localhost:54324> instead of being delivered.
+There's no sign-in step. The first visit creates a guest account (see
+[Guest accounts](#guest-accounts)). **Anonymous sign-ins must be enabled** in
+Supabase → Authentication → Sign In / Providers, or `/start` shows an error
+with a link to email sign-in instead.
+
+---
+
+## Guest accounts
+
+Opening the app without a session sends you to `/start`, which calls
+`supabase.auth.signInAnonymously()` in the browser and carries on. A guest is
+a real Supabase user with a real `auth.uid()`, so every RLS policy, the
+profile trigger and the household RPCs work exactly as they do for an email
+account. Nothing in the schema knows the difference.
+
+Two consequences worth remembering:
+
+- **A guest account lives in that browser.** Clearing site data, using a
+  private window or switching phones starts a new, empty account. The Fridge
+  tab offers **Keep my data**, which adds an email to the same account
+  (`updateUser({ email })`) once the link is confirmed. Same user id, same rows.
+- **Guests can't sign out.** Signing out would leave their data unreachable,
+  so the button only appears for accounts with an email.
+
+It happens in the browser rather than in the proxy on purpose: link previews
+and crawlers that don't run JavaScript never create accounts. Supabase also
+rate-limits anonymous sign-ins per IP.
+
+Email sign-in at `/login` still works.
 
 ---
 
 ## Sharing a kitchen
 
-The first person to sign in picks **Start a kitchen** and gets a six-character
-join code (shown on the Fridge tab). The second person signs in, picks **Join
+The first person to open the app picks **Start a kitchen** and gets a six-character
+join code (shown on the Fridge tab). The second person opens the app on their phone, picks **Join
 with a code**, and enters it. From then on both accounts read and write the same
 `pantry_items` and `foods` rows.
 
@@ -255,13 +282,65 @@ run is not a passing run — check the output before trusting it.
 
 ---
 
+## Logging from a photo
+
+Today → Log food → **Photo**. **Take photo** opens the rear camera on a phone;
+**Choose photo** picks one from the library.
+
+- The browser shrinks the photo to 1568px on the long edge as JPEG before
+  uploading (`src/lib/image.ts`). A label stays legible at that size, and the
+  upload stays well under Vercel's 4.5MB request limit.
+- With a Nutrition Facts panel, the per-serving numbers and printed serving
+  size are copied exactly. Without one, each visible food is estimated and
+  labelled as an estimate.
+- Results land as drafts with per-serving numbers and servings set to 1. Set
+  how many servings you had, check the numbers, then confirm.
+- **The photo is never stored.** It goes to the model and nowhere else. Only
+  token counts reach `ai_usage`.
+
+---
+
+## Planning the week
+
+Cook → **Plan** and **Recipes**.
+
+**Recipes** are shared within the household. You can add one by typing it
+in, by saving any Cook idea or Sunday prep component, or by pasting recipe
+text to import it. An import fills the form for review and doesn't save on its
+own.
+
+**Plan** is a Monday-start week. Each meal slot on a day is one of:
+
+- **Cooking:** a recipe and how many people are eating. **Make extra for…**
+  lists the free meals in the next four days; tapping one adds leftovers for
+  it.
+- **Leftovers:** points at the cooked meal it comes from.
+
+Each cooked card shows **Make N portions**: the people at that meal plus
+everyone eating its leftovers. It also says how that compares to what the
+recipe makes ("1.5× the recipe"). The numbers are computed in
+`src/lib/planner.ts`, not stored, so changing Tuesday's headcount updates
+Sunday's straight away.
+
+The database enforces the rules as well as the UI (`supabase/migrations/20260913160000_meal_planner.sql`):
+
+- Leftovers must come from a cooked meal and use the same recipe.
+- They must fall later, within four days.
+- One plan per day and meal.
+- A plan can't point at another household's recipe.
+- Deleting a recipe or a cook removes what depends on it.
+
+---
+
 ## The AI features
 
-Four route handlers under `src/app/api/`, all on `claude-sonnet-5`:
+Six route handlers under `src/app/api/`, all on `claude-sonnet-5`:
 
 | Route | Used by | What it returns |
 |---|---|---|
 | `POST /api/estimate` | Today → Describe it | Items with kcal / protein / carbs / fat, as editable drafts |
+| `POST /api/photo` | Today → Photo | Per-serving numbers from a label, or estimates from a plate |
+| `POST /api/import-recipe` | Cook → Recipes | Name, servings, ingredient lines and method, filled into the form |
 | `POST /api/sort-groceries` | Fridge → Bulk add | Items with a location and shelf life, as an editable list |
 | `POST /api/cook` | Cook → three ideas | Three meals from the kitchen, soonest use-by first |
 | `POST /api/prep-plan` | Cook → Sunday prep | 2–3 batch components for N lunches |
@@ -276,8 +355,11 @@ They share one runner, `src/lib/ai/core.ts`. Rules worth remembering:
   doesn't fit, the route returns an error. It never substitutes numbers.
 - **Cook and prep plan read the kitchen on the server** through your own RLS.
   The browser only sends its local date.
-- **Rate limit:** 20 calls per person per rolling hour, counted from
-  `ai_usage` (`AI_CALLS_PER_HOUR` in `schemas.ts`).
+- **Rate limits:** 20 calls per person per rolling hour
+  (`AI_CALLS_PER_HOUR`), and 150 calls per 24 hours across the whole app
+  (`AI_CALLS_PER_DAY_ALL`). Guest accounts are free to create, so the app-wide
+  cap is the one that actually bounds the bill. It reads a bare count from the
+  SECURITY DEFINER `ai_calls_since()`, which exposes no rows.
 - **Cost:** every call, including failures, logs its tokens to `ai_usage`.
   Progress shows "AI this month" from those rows at list prices. For the
   household total, run this in the Supabase SQL editor (it bypasses RLS):
@@ -421,5 +503,6 @@ inline script, so there is no flash of the wrong theme.
 | 2 | Today — food entry, food library, movement, weigh-ins | **Done** |
 | 3 | Fridge — inventory, shopping list, expiry badges, filters | **Done** |
 | 4 | Progress — chart, stats, target calculator | Built; signed-in browser check pending |
-| 5 | AI routes — estimate, sort groceries, cook, prep plan | Built; live check pending Supabase + Anthropic keys |
-| 6 | PWA packaging, offline reads, Vercel deploy | PWA built and checked locally; deploy pending Vercel import |
+| 5 | AI routes — estimate, sort groceries, cook, prep plan | Built; untested against the real API (no Anthropic key yet) |
+| 6 | PWA packaging, offline reads, Vercel deploy | Deployed at lifestyle-tracker-one.vercel.app |
+| 7 | Guest accounts, photo logging, weekly meal planner, app-wide AI cap | Built; live check pending |
