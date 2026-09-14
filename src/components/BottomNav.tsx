@@ -8,7 +8,7 @@ type Tab = { href: "/today" | "/fridge" | "/cook" | "/progress"; label: string; 
 
 const LEFT: readonly Tab[] = [
   { href: "/today", label: "Today", icon: "calendar" },
-  { href: "/fridge", label: "Fridge", icon: "fridge" },
+  { href: "/fridge", label: "Kitchen", icon: "fridge" },
 ];
 const RIGHT: readonly Tab[] = [
   { href: "/cook", label: "Cook", icon: "leaf" },

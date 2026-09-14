@@ -4,6 +4,10 @@ import { useState } from "react";
 import type { ShoppingListItem, StorageLocation } from "@/lib/supabase/database.types";
 import { LOCATION_LABEL, LOCATIONS, isoInDays } from "@/lib/expiry";
 import { ErrorNote } from "@/components/ErrorNote";
+import { Icon } from "@/components/ui/icons";
+import { Sheet } from "@/components/ui/Sheet";
+import { EmptyState } from "@/components/ui/ListRow";
+import { useToast } from "@/components/ui/Toast";
 
 /**
  * What we need, as opposed to what we have.
@@ -33,6 +37,7 @@ export function ShoppingList({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stocking, setStocking] = useState<ShoppingListItem | null>(null);
+  const toast = useToast();
 
   async function add(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -50,84 +55,67 @@ export function ShoppingList({
   }
 
   return (
-    <section className="card mt-4 p-5">
-      <h2 className="font-display text-lg font-semibold">
-        Need to buy{" "}
-        {items.length > 0 && (
-          <span className="text-[15px] font-normal text-muted">({items.length})</span>
-        )}
-      </h2>
-
-      <form onSubmit={add} className="mt-3 flex gap-2">
+    <div className="mt-4">
+      <form onSubmit={add} className="flex gap-2">
         <input
           aria-label="Add to the shopping list"
           className="field flex-1"
-          placeholder="Tahini"
+          placeholder="Add to the list…"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <button type="submit" className="btn btn-quiet" disabled={busy}>
-          Add
+        <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()} aria-label="Add">
+          <Icon name="plus" size={20} strokeWidth={2.2} />
         </button>
       </form>
 
       {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
 
       {items.length === 0 ? (
-        <p className="mt-3 text-[13px] text-muted">
-          Nothing on the list. Anything either of you marks as used up ends up here.
-        </p>
+        <EmptyState icon="cart" text="Nothing to buy. Anything marked “used up” in the kitchen lands here." />
       ) : (
-        <ul className="mt-3 grid grid-cols-1">
+        <ul className="list mt-3">
           {items.map((item) => (
-            <li key={item.id} className="border-b last:border-b-0" style={{ borderColor: "var(--line)" }}>
-              <div className="flex items-center gap-2 py-2">
-                <button
-                  type="button"
-                  onClick={() => setStocking(stocking?.id === item.id ? null : item)}
-                  aria-label={`Put ${item.name} away`}
-                  aria-expanded={stocking?.id === item.id}
-                  className="shrink-0 rounded-field"
-                  style={{
-                    width: 28,
-                    height: 28,
-                    minHeight: 28,
-                    border: "2px solid var(--pine)",
-                    color: "var(--pine)",
-                  }}
-                >
-                  {stocking?.id === item.id ? "▾" : ""}
-                </button>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px]">{item.name}</span>
-                  {item.note && <span className="block text-[13px] text-muted">{item.note}</span>}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void onRemove(item.id)}
-                  aria-label={`Remove ${item.name} from the list`}
-                  className="shrink-0 text-muted"
-                  style={{ width: 44, height: 44 }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {stocking?.id === item.id && (
-                <PutAway
-                  item={item}
-                  onCancel={() => setStocking(null)}
-                  onStock={async (quantity, location, expiresOn) => {
-                    await onStock(item.id, quantity, location, expiresOn);
-                    setStocking(null);
-                  }}
-                />
-              )}
+            <li key={item.id} className="list-row">
+              <button
+                type="button"
+                onClick={() => setStocking(item)}
+                aria-label={`Bought ${item.name}: put it away`}
+                className="grid shrink-0 place-items-center rounded-full"
+                style={{ width: 28, height: 28, minHeight: 28, border: "2px solid var(--pine)", color: "var(--pine)" }}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px]">{item.name}</span>
+                {item.note && <span className="t-meta block truncate">{item.note}</span>}
+              </span>
+              <button
+                type="button"
+                onClick={() => void onRemove(item.id)}
+                aria-label={`Remove ${item.name} from the list`}
+                className="icon-btn text-muted"
+              >
+                <Icon name="close" size={18} />
+              </button>
             </li>
           ))}
         </ul>
       )}
-    </section>
+
+      <Sheet open={stocking !== null} onClose={() => setStocking(null)} title={stocking ? `Put ${stocking.name} away` : ""}>
+        {stocking && (
+          <PutAway
+            key={stocking.id}
+            item={stocking}
+            onCancel={() => setStocking(null)}
+            onStock={async (quantity, location, expiresOn) => {
+              await onStock(stocking.id, quantity, location, expiresOn);
+              toast({ message: `${stocking.name} is in the ${LOCATION_LABEL[location].toLowerCase()}` });
+              setStocking(null);
+            }}
+          />
+        )}
+      </Sheet>
+    </div>
   );
 }
 
@@ -151,8 +139,8 @@ function PutAway({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="mb-3 rounded-field p-3" style={{ background: "var(--pine-wash)" }}>
-      <p className="text-[13px] font-semibold text-muted">Put {item.name} away</p>
+    <div>
+      <p className="t-meta">How much, where, and a use-by date if it has one.</p>
 
       <div className="mt-2 flex gap-2">
         <input

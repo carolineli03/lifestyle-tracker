@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/PageHeader";
 import { getSession } from "@/lib/household";
 import { FridgeClient } from "./FridgeClient";
 
-export const metadata = { title: "Fridge · Lifestyle Tracker" };
+export const metadata = { title: "Kitchen · Lifestyle Tracker" };
 
 export default async function FridgePage() {
   const session = await getSession();
@@ -11,14 +10,6 @@ export default async function FridgePage() {
   if (!session.household) redirect("/onboarding");
 
   return (
-    <>
-      <PageHeader title="Fridge" />
-      <FridgeClient
-        userId={session.userId}
-        household={session.household}
-        isGuest={session.isGuest}
-        email={session.email}
-      />
-    </>
+    <FridgeClient userId={session.userId} household={session.household} />
   );
 }
