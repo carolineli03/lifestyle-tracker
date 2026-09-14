@@ -18,6 +18,8 @@
 -- ---------------------------------------------------------------------------
 
 drop function if exists public.log_entry(text, integer, numeric, numeric, numeric, date, boolean);
+-- Safe to re-run: replace this migration's own signature too, if it's already there.
+drop function if exists public.log_entry(text, integer, numeric, numeric, numeric, date, boolean, integer, numeric, numeric, numeric);
 
 create function public.log_entry(
   p_name              text,
