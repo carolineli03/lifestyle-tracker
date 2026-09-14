@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- Icebox: initial schema
+-- Lifestyle Tracker: initial schema
 --
 -- Two sharing boundaries exist in this app and it is worth being explicit
 -- about them up front, because every RLS policy in the next migration is a

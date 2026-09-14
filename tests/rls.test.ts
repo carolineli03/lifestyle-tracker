@@ -21,7 +21,7 @@ import {
  * The two load-bearing assertions the spec asks for are marked below.
  */
 
-const DB_NAME = "icebox_rls_test";
+const DB_NAME = "lifestyle_tracker_rls_test";
 
 /**
  * Probed at module scope, not in beforeAll: Vitest decides which suites to
@@ -443,6 +443,111 @@ describe("RLS policies", () => {
       await expect(
         carol.query("select * from public.stock_shopping_item($1)", [rows[0]?.id]),
       ).rejects.toThrow(/no longer on the list/i);
+    });
+  });
+
+  describe.runIf(available)("recipes and the meal plan", () => {
+    let chiliId = "";
+    let cookId = "";
+
+    it("shares recipes within the household", async () => {
+      const { rows } = await alice.query<{ id: string }>(
+        `insert into public.recipes (household_id, name, servings, ingredients, source)
+         values ($1, 'Chili', 4, array['2 lb beef', '1 onion'], 'manual') returning id`,
+        [householdId],
+      );
+      chiliId = rows[0]?.id ?? "";
+      const seen = await bob.query<{ name: string }>("select name from public.recipes");
+      expect(seen.rows.map((r) => r.name)).toContain("Chili");
+    });
+
+    it("refuses the same recipe name twice, ignoring case", async () => {
+      await expect(
+        bob.query("insert into public.recipes (household_id, name) values ($1, 'CHILI ')", [householdId]),
+      ).rejects.toThrow(/duplicate key|unique/i);
+    });
+
+    it("lets the partner plan a cook and leftovers from the shared recipe", async () => {
+      const cooked = await bob.query<{ id: string }>(
+        `insert into public.meal_plan (household_id, planned_on, meal, recipe_id, eaters)
+         values ($1, current_date, 'dinner', $2, 2) returning id`,
+        [householdId, chiliId],
+      );
+      cookId = cooked.rows[0]?.id ?? "";
+      await alice.query(
+        `insert into public.meal_plan (household_id, planned_on, meal, recipe_id, eaters, leftovers_from)
+         values ($1, current_date + 1, 'lunch', $2, 2, $3)`,
+        [householdId, chiliId, cookId],
+      );
+      const { rows } = await alice.query("select id from public.meal_plan");
+      expect(rows).toHaveLength(2);
+    });
+
+    it("refuses leftovers more than four days after cooking", async () => {
+      await expect(
+        alice.query(
+          `insert into public.meal_plan (household_id, planned_on, meal, recipe_id, leftovers_from)
+           values ($1, current_date + 5, 'dinner', $2, $3)`,
+          [householdId, chiliId, cookId],
+        ),
+      ).rejects.toThrow(/within four days/i);
+    });
+
+    it("refuses leftovers before the meal was cooked", async () => {
+      await expect(
+        alice.query(
+          `insert into public.meal_plan (household_id, planned_on, meal, recipe_id, leftovers_from)
+           values ($1, current_date - 1, 'dinner', $2, $3)`,
+          [householdId, chiliId, cookId],
+        ),
+      ).rejects.toThrow(/within four days/i);
+    });
+
+    it("refuses two plans for the same meal slot", async () => {
+      await expect(
+        bob.query(
+          `insert into public.meal_plan (household_id, planned_on, meal, recipe_id)
+           values ($1, current_date, 'dinner', $2)`,
+          [householdId, chiliId],
+        ),
+      ).rejects.toThrow(/duplicate key|unique/i);
+    });
+
+    it("hides recipes and plans from another household", async () => {
+      expect((await carol.query("select id from public.recipes")).rows).toHaveLength(0);
+      expect((await carol.query("select id from public.meal_plan")).rows).toHaveLength(0);
+    });
+
+    it("cannot plan a meal from another kitchen's recipe", async () => {
+      const carolHousehold = await carol.query<{ id: string }>("select public.current_household_id() as id");
+      const theirs = await carol.query<{ id: string }>(
+        "insert into public.recipes (household_id, name) values ($1, 'Carol soup') returning id",
+        [carolHousehold.rows[0]?.id],
+      );
+      await expect(
+        alice.query(
+          `insert into public.meal_plan (household_id, planned_on, meal, recipe_id)
+           values ($1, current_date + 2, 'dinner', $2)`,
+          [householdId, theirs.rows[0]?.id],
+        ),
+      ).rejects.toThrow(/foreign key/i);
+    });
+
+    it("removes the leftovers when the cook is deleted", async () => {
+      await bob.query("delete from public.meal_plan where id = $1", [cookId]);
+      const { rows } = await alice.query("select id from public.meal_plan");
+      expect(rows).toHaveLength(0);
+    });
+  });
+
+  describe.runIf(available)("ai_calls_since", () => {
+    it("gives any user the app-wide count, and nothing else", async () => {
+      await alice.query("insert into public.ai_usage (user_id, route, model) values ($1, 'estimate', 'claude-sonnet-5')", [aliceId]);
+      await carol.query("insert into public.ai_usage (user_id, route, model) values ($1, 'cook', 'claude-sonnet-5')", [carolId]);
+      const { rows } = await bob.query<{ n: number }>("select public.ai_calls_since(now() - interval '1 day') as n");
+      expect(rows[0]?.n).toBe(2);
+      // …while the rows themselves stay private.
+      expect((await bob.query("select id from public.ai_usage")).rows).toHaveLength(0);
     });
   });
 

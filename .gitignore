@@ -41,3 +41,6 @@ supabase/.branches/
 
 # test output
 coverage/
+
+# Copy-paste bundles of supabase/migrations for the SQL Editor (regenerable)
+supabase/sql-editor/

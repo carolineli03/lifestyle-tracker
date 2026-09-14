@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- Icebox: the shopping list
+-- Lifestyle Tracker: the shopping list
 --
 -- Kept separate from pantry_items rather than added as a `needed` flag on it.
 -- The two are different kinds of thing: a pantry item is something you own,

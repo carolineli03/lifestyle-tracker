@@ -102,11 +102,6 @@ export function AddItemForm({ onAdd }: { onAdd: (item: NewPantryItem) => Promise
           {busy ? "Adding…" : "Add item"}
         </button>
       </form>
-
-      <p className="mt-3 text-[13px] text-muted">
-        Pasting a whole grocery haul and having it sorted into locations with shelf-life estimates
-        arrives in phase 5.
-      </p>
     </section>
   );
 }

@@ -6,8 +6,11 @@ import { updateSession } from "@/lib/supabase/middleware";
  * same edge-runtime hook under its current name.
  */
 
-/** Routes reachable without a session. Everything else redirects to /login. */
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/error"];
+/**
+ * Routes reachable without a session. Everything else goes to /start, which
+ * quietly creates a guest account — there is no sign-in step.
+ */
+const PUBLIC_PATHS = ["/start", "/login", "/auth/callback", "/auth/error"];
 
 export async function proxy(request: NextRequest) {
   const { response, userId } = await updateSession(request);
@@ -17,15 +20,25 @@ export async function proxy(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
 
+  if (!userId && pathname.startsWith("/api/")) {
+    // A fetch() can't follow a redirect to a login page into anything useful;
+    // tell it plainly. Each route re-checks the session itself as well.
+    return Response.json(
+      { error: { code: "unauthenticated", message: "You're signed out. Sign in again and retry." } },
+      { status: 401 },
+    );
+  }
+
   if (!userId && !isPublic) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    // Remember where they were headed so the magic link lands there.
+    url.pathname = "/start";
+    // Remember where they were headed so they land there once the guest
+    // account exists.
     if (pathname !== "/") url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  if (userId && pathname === "/login") {
+  if (userId && (pathname === "/login" || pathname === "/start")) {
     const url = request.nextUrl.clone();
     url.pathname = "/today";
     url.search = "";

@@ -22,6 +22,8 @@ export type Draft = {
   servings: number;
   /** Whether confirming should add this to the household food library. */
   remember: boolean;
+  /** What one serving is ("Serving: 2/3 cup (55g)"), or that it's a photo estimate. */
+  note?: string;
 };
 
 export const EMPTY_MACROS: MacroTotals = { kcal: 0, protein_g: 0, carb_g: 0, fat_g: 0 };
@@ -78,9 +80,11 @@ export function DraftTable({
               </button>
             </div>
 
+            {draft.note && <p className="mt-1.5 text-[13px] text-muted">{draft.note}</p>}
+
             <div className="mt-2 flex items-center gap-2">
               <label htmlFor={`servings-${draft.key}`} className="text-[13px] font-semibold text-muted">
-                Portions
+                Servings
               </label>
               <input
                 id={`servings-${draft.key}`}

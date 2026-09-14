@@ -3,11 +3,11 @@ import { getSession } from "@/lib/household";
 import { supabaseServer } from "@/lib/supabase/server";
 import { TodayClient } from "./TodayClient";
 
-export const metadata = { title: "Today · Icebox" };
+export const metadata = { title: "Today · Lifestyle Tracker" };
 
 export default async function TodayPage() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/start");
 
   // Targets are date-independent, so they can be fetched here and handed down
   // — one fewer round trip before the hero number can render.

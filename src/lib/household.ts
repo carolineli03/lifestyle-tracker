@@ -5,6 +5,7 @@ import type { Household } from "@/lib/supabase/database.types";
 export type Session = {
   userId: string;
   email: string | null;
+  isGuest: boolean;
   household: Household | null;
 };
 
@@ -32,6 +33,9 @@ export async function getSession(): Promise<Session | null> {
   return {
     userId: user.id,
     email: user.email ?? null,
+    // A guest from /start, with no email yet. Signing out would orphan their
+    // data, so the UI offers "add your email" instead.
+    isGuest: user.is_anonymous === true,
     household: data ?? null,
   };
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { getSession } from "@/lib/household";
 
 /**
@@ -9,13 +10,14 @@ import { getSession } from "@/lib/household";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/start");
   if (!session.household) redirect("/onboarding");
 
   return (
     <div className="min-h-dvh">
       {/* Desktop is just the mobile column, centred. */}
       <div className="mx-auto w-full max-w-[640px] px-5 pt-4" style={{ paddingBottom: 88 }}>
+        <OfflineBanner />
         {children}
       </div>
       <BottomNav />

@@ -5,18 +5,24 @@ import type { Household, PantryItem, StorageLocation } from "@/lib/supabase/data
 import * as api from "@/lib/fridge";
 import { LOCATION_LABEL, LOCATIONS, expiringSoon } from "@/lib/expiry";
 import { AddItemForm } from "@/components/fridge/AddItemForm";
+import { BulkAdd } from "@/components/fridge/BulkAdd";
 import { InventoryList, type LocationFilter } from "@/components/fridge/InventoryList";
 import { ShoppingList } from "@/components/fridge/ShoppingList";
 import { ExpiryBadge } from "@/components/fridge/ExpiryBadge";
 import { ErrorNote } from "@/components/ErrorNote";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AccountCard } from "@/components/AccountCard";
 
 export function FridgeClient({
   userId,
   household,
+  isGuest,
+  email,
 }: {
   userId: string;
   household: Household;
+  isGuest: boolean;
+  email: string | null;
 }) {
   const [data, setData] = useState<api.KitchenData | null>(null);
   const [filter, setFilter] = useState<LocationFilter>("all");
@@ -133,6 +139,8 @@ export function FridgeClient({
         onAdd={(item) => guard(() => api.addPantryItems(household.id, userId, [item]).then(() => undefined))}
       />
 
+      <BulkAdd onAdd={(items) => guard(() => api.addPantryItems(household.id, userId, items).then(() => undefined))} />
+
       <ShoppingList
         items={data?.shopping ?? []}
         onAdd={(name, note) =>
@@ -157,11 +165,7 @@ export function FridgeClient({
         <ThemeToggle />
       </div>
 
-      <form action="/auth/signout" method="post" className="mt-4">
-        <button type="submit" className="btn btn-quiet w-full">
-          Sign out
-        </button>
-      </form>
+      <AccountCard isGuest={isGuest} email={email} />
     </>
   );
 }

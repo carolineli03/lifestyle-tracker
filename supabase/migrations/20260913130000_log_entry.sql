@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- Icebox: logging a food
+-- Lifestyle Tracker: logging a food
 --
 -- Confirming an entry does two writes that must not drift apart: the entry
 -- itself, and an upsert into the household's food library so the library

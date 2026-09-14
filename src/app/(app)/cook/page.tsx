@@ -1,13 +1,19 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
-import { Placeholder } from "@/components/Placeholder";
+import { getSession } from "@/lib/household";
+import { CookClient } from "./CookClient";
 
-export const metadata = { title: "Cook · Icebox" };
+export const metadata = { title: "Cook · Lifestyle Tracker" };
 
-export default function CookPage() {
+export default async function CookPage() {
+  const session = await getSession();
+  if (!session) redirect("/start");
+  if (!session.household) redirect("/onboarding");
+
   return (
     <>
       <PageHeader title="Cook" />
-      <Placeholder what="Three ideas from what's on hand, and a Sunday prep plan." phase="phase 5" />
+      <CookClient householdId={session.household.id} userId={session.userId} />
     </>
   );
 }

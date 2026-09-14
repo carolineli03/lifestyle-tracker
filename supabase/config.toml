@@ -1,7 +1,7 @@
 # Supabase CLI configuration.
 # `project_id` is a local label; it does not have to match the hosted project.
 # Link to the hosted project with:  supabase link --project-ref <ref>
-project_id = "icebox"
+project_id = "lifestyle-tracker"
 
 [api]
 enabled = true

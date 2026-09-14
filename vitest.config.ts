@@ -19,6 +19,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    reporters: ["default", "./tests/support/skip-banner.ts"],
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
     // The RLS suite provisions a database; give it room on a cold start.
     testTimeout: 30_000,

@@ -2,11 +2,20 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { Food } from "@/lib/supabase/database.types";
-import { rankFoods, type MacroTotals } from "@/lib/totals";
+import { rankFoods, round1, type MacroTotals } from "@/lib/totals";
+import { postAi } from "@/lib/ai/client";
+import { EstimateResponse } from "@/lib/ai/schemas";
 import { DraftTable, EMPTY_MACROS, draftTotals, type Draft } from "./DraftTable";
+import { PhotoLog } from "./PhotoLog";
 import { ErrorNote } from "@/components/ErrorNote";
 
-type Tab = "search" | "describe";
+type Tab = "search" | "photo" | "describe";
+
+const TABS: ReadonlyArray<{ value: Tab; label: string }> = [
+  { value: "search", label: "Search saved" },
+  { value: "photo", label: "Photo" },
+  { value: "describe", label: "Describe it" },
+];
 
 let draftCounter = 0;
 function nextKey(): string {
@@ -42,6 +51,8 @@ export function LogFood({
   const [query, setQuery] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
+  const [estimating, setEstimating] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Ranked in memory against the library we already hold, so results land on
@@ -69,6 +80,38 @@ export function LogFood({
     });
   }
 
+  // The model's items become ordinary drafts: the same editable rows, the same
+  // confirm button. A failure leaves the text in the box and search one tap away.
+  async function estimate(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const text = description.trim();
+    if (!text) return;
+    setEstimating(true);
+    setError(null);
+    try {
+      const { items } = await postAi("/api/estimate", { text }, EstimateResponse);
+      if (items.length === 0) {
+        setError("That didn't read as food or drink. Try describing it differently, or search saved foods.");
+        return;
+      }
+      setDrafts((d) => [
+        ...d,
+        ...items.map((item) => ({
+          key: nextKey(),
+          name: item.name,
+          base: { kcal: Math.round(item.kcal), protein_g: round1(item.protein), carb_g: round1(item.carbs), fat_g: round1(item.fat) },
+          servings: 1,
+          remember: true,
+        })),
+      ]);
+      setDescription("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The estimate failed. You can still add foods by hand.");
+    } finally {
+      setEstimating(false);
+    }
+  }
+
   async function confirm(): Promise<void> {
     const items = drafts
       .map((d) => ({ name: d.name.trim(), macros: draftTotals(d), remember: d.remember }))
@@ -92,30 +135,28 @@ export function LogFood({
     <section className="card mt-4 p-5">
       <h2 className="font-display text-lg font-semibold">Log food</h2>
 
-      <div role="tablist" aria-label="How to log" className="mt-3 flex gap-2">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "search"}
-          data-active={tab === "search"}
-          className="chip"
-          onClick={() => setTab("search")}
-        >
-          Search saved
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "describe"}
-          data-active={tab === "describe"}
-          className="chip"
-          onClick={() => setTab("describe")}
-        >
-          Describe it
-        </button>
+      <div role="tablist" aria-label="How to log" className="mt-3 flex flex-wrap gap-2">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.value}
+            data-active={tab === t.value}
+            className="chip"
+            onClick={() => setTab(t.value)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {tab === "search" ? (
+      {tab === "photo" ? (
+        <PhotoLog
+          onError={setError}
+          onDrafts={(items) => setDrafts((d) => [...d, ...items.map((item) => ({ ...item, key: nextKey() }))])}
+        />
+      ) : tab === "search" ? (
         <div className="mt-4">
           <label htmlFor="food-search" className="sr-only">
             Search your saved foods
@@ -163,13 +204,30 @@ export function LogFood({
           )}
         </div>
       ) : (
-        <div className="mt-4">
-          <p className="text-[14px] text-muted">
-            Typing &ldquo;2 scrambled eggs, sourdough with butter, black coffee&rdquo; and having it
-            broken into items arrives in phase 5. Until then, search above or add a food by name —
-            the numbers end up in the same place.
+        <form className="mt-4" onSubmit={(e) => void estimate(e)}>
+          <label htmlFor="food-describe" className="sr-only">
+            Describe what you ate
+          </label>
+          <textarea
+            id="food-describe"
+            className="field"
+            rows={3}
+            placeholder="2 scrambled eggs, sourdough with butter, black coffee"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={estimating}
+          />
+          <button
+            type="submit"
+            className="btn btn-quiet mt-2 w-full"
+            disabled={estimating || description.trim().length === 0}
+          >
+            {estimating ? "Estimating…" : "Estimate"}
+          </button>
+          <p className="mt-2 text-[13px] text-muted">
+            The estimate lands below as editable rows. Nothing is logged until you confirm.
           </p>
-        </div>
+        </form>
       )}
 
       <DraftTable

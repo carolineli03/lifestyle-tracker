@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Sign-in problem · Icebox" };
+export const metadata = { title: "Sign-in problem · Lifestyle Tracker" };
 
 export default async function AuthErrorPage({
   searchParams,

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -16,9 +17,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Icebox",
+  title: "Lifestyle Tracker",
   description: "What's in the kitchen, what you ate, and what to cook next.",
-  applicationName: "Icebox",
+  applicationName: "Lifestyle Tracker",
+  icons: {
+    icon: [
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: { capable: true, title: "Lifestyle", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -38,7 +47,7 @@ export const viewport: Viewport = {
 const THEME_BOOTSTRAP = `
 (function () {
   try {
-    var t = localStorage.getItem("icebox-theme");
+    var t = localStorage.getItem("lifestyle-tracker-theme");
     if (t === "light" || t === "dark") {
       document.documentElement.setAttribute("data-theme", t);
     }
@@ -52,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
         {children}
+        <ServiceWorker />
       </body>
     </html>
   );

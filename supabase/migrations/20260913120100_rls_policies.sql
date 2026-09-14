@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- Icebox: Row Level Security
+-- Lifestyle Tracker: Row Level Security
 --
 -- Every table gets RLS enabled and explicit policies. There is no "allow all"
 -- fallback anywhere: a table with RLS on and no matching policy denies by
