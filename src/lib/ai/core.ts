@@ -11,6 +11,9 @@ import { AI_CALLS_PER_HOUR, AI_MODEL, type AiErrorCode, type AiRoute } from "./s
  * tested without a network, a database or an API key.
  */
 
+/** Plain text, or content blocks when a request carries an image. */
+export type UserContent = string | Anthropic.ContentBlockParam[];
+
 export type ModelReply = {
   stopReason: string | null;
   text: string;
@@ -24,7 +27,7 @@ export type AiDeps = {
   /** This user's calls since `since`, oldest first (only timestamps needed). */
   recentCalls: (since: Date) => Promise<Date[]>;
   logUsage: (row: { route: AiRoute; model: string; input_tokens: number; output_tokens: number; ok: boolean }) => Promise<void>;
-  callModel: (args: { system: string; user: string; schema: z.ZodType; effort: "low" | "medium" }) => Promise<ModelReply>;
+  callModel: (args: { system: string; user: UserContent; schema: z.ZodType; effort: "low" | "medium" }) => Promise<ModelReply>;
 };
 
 export type AiFailure = { ok: false; status: number; code: AiErrorCode; message: string };
@@ -37,7 +40,7 @@ export function fail(status: number, code: AiErrorCode, message: string): AiFail
 const HOUR_MS = 60 * 60 * 1000;
 
 export async function runStructured<S extends z.ZodType>(
-  job: { route: AiRoute; system: string; user: string; schema: S; effort: "low" | "medium" },
+  job: { route: AiRoute; system: string; user: UserContent; schema: S; effort: "low" | "medium" },
   deps: AiDeps,
 ): Promise<AiOutcome<z.infer<S>>> {
   if (!deps.apiKey) {

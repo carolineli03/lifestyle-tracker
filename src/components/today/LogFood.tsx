@@ -6,9 +6,16 @@ import { rankFoods, round1, type MacroTotals } from "@/lib/totals";
 import { postAi } from "@/lib/ai/client";
 import { EstimateResponse } from "@/lib/ai/schemas";
 import { DraftTable, EMPTY_MACROS, draftTotals, type Draft } from "./DraftTable";
+import { PhotoLog } from "./PhotoLog";
 import { ErrorNote } from "@/components/ErrorNote";
 
-type Tab = "search" | "describe";
+type Tab = "search" | "photo" | "describe";
+
+const TABS: ReadonlyArray<{ value: Tab; label: string }> = [
+  { value: "search", label: "Search saved" },
+  { value: "photo", label: "Photo" },
+  { value: "describe", label: "Describe it" },
+];
 
 let draftCounter = 0;
 function nextKey(): string {
@@ -128,30 +135,28 @@ export function LogFood({
     <section className="card mt-4 p-5">
       <h2 className="font-display text-lg font-semibold">Log food</h2>
 
-      <div role="tablist" aria-label="How to log" className="mt-3 flex gap-2">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "search"}
-          data-active={tab === "search"}
-          className="chip"
-          onClick={() => setTab("search")}
-        >
-          Search saved
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "describe"}
-          data-active={tab === "describe"}
-          className="chip"
-          onClick={() => setTab("describe")}
-        >
-          Describe it
-        </button>
+      <div role="tablist" aria-label="How to log" className="mt-3 flex flex-wrap gap-2">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.value}
+            data-active={tab === t.value}
+            className="chip"
+            onClick={() => setTab(t.value)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {tab === "search" ? (
+      {tab === "photo" ? (
+        <PhotoLog
+          onError={setError}
+          onDrafts={(items) => setDrafts((d) => [...d, ...items.map((item) => ({ ...item, key: nextKey() }))])}
+        />
+      ) : tab === "search" ? (
         <div className="mt-4">
           <label htmlFor="food-search" className="sr-only">
             Search your saved foods

@@ -12,7 +12,7 @@ import type { AiErrorBody } from "./schemas";
 const TIMEOUT_MS = 60_000;
 
 export async function postAi<S extends z.ZodType>(
-  path: "/api/estimate" | "/api/sort-groceries" | "/api/cook" | "/api/prep-plan",
+  path: "/api/estimate" | "/api/photo" | "/api/sort-groceries" | "/api/cook" | "/api/prep-plan" | "/api/import-recipe",
   body: unknown,
   schema: S,
 ): Promise<z.infer<S>> {

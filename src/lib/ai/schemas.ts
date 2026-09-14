@@ -18,7 +18,7 @@ export const AI_PRICING: Record<string, { input: number; output: number }> = {
 /** Calls per user per rolling hour, across all four routes. */
 export const AI_CALLS_PER_HOUR = 20;
 
-export type AiRoute = "estimate" | "sort-groceries" | "cook" | "prep-plan";
+export type AiRoute = "estimate" | "photo" | "sort-groceries" | "cook" | "prep-plan" | "import-recipe";
 
 // --- estimate ---------------------------------------------------------------
 
@@ -35,6 +35,37 @@ export type EstimateItem = z.infer<typeof EstimateItem>;
 export const EstimateRequest = z.object({
   text: z.string().trim().min(1, "Describe what you ate first.").max(2000, "That's a lot — keep it under 2,000 characters."),
 });
+
+// --- photo ------------------------------------------------------------------
+
+/** base64 of a ≤ ~3.7 MB image; the browser downscales well below this. */
+export const PHOTO_MAX_BASE64 = 5_000_000;
+export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+export const PhotoRequest = z.object({
+  image: z
+    .string()
+    .min(100, "That photo came through empty.")
+    .max(PHOTO_MAX_BASE64, "That photo is too large. Try again — it's shrunk automatically.")
+    .regex(/^[A-Za-z0-9+/]+=*$/, "That photo didn't upload correctly."),
+  mediaType: z.enum(PHOTO_TYPES),
+});
+
+export const PhotoItem = z.object({
+  name: z.string(),
+  /** As printed on the label ("2/3 cup (55g)"), or a description of the portion shown. */
+  serving_size: z.string().nullable(),
+  kcal: z.number(),
+  protein: z.number(),
+  carbs: z.number(),
+  fat: z.number(),
+});
+export const PhotoResponse = z.object({
+  source: z.enum(["label", "estimate"]),
+  items: z.array(PhotoItem),
+});
+export type PhotoItem = z.infer<typeof PhotoItem>;
+export type PhotoResult = z.infer<typeof PhotoResponse>;
 
 // --- sort groceries ---------------------------------------------------------
 
