@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { barcodeVariants, genericFirst, mergeResults, normaliseOff, normaliseUsda, tidyName } from "../src/lib/fooddb.js";
+import { barcodeVariants, mergeResults, rankUsda, normaliseOff, normaliseUsda, tidyName } from "../src/lib/fooddb.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string) => JSON.parse(readFileSync(path.join(here, "fixtures", name), "utf8"));
@@ -98,7 +98,28 @@ describe("helpers", () => {
 
   it("puts generic USDA foods ahead of branded ones", () => {
     const [branded, legacy] = fixture("usda-search.json").foods.map(normaliseUsda);
-    expect(genericFirst([branded, legacy]).map((f) => f?.sourceLabel)).toEqual(["USDA", "USDA (branded)"]);
+    expect(rankUsda([branded, legacy], "greek yogurt").map((f) => f?.sourceLabel)).toEqual(["USDA", "USDA (branded)"]);
+  });
+
+  it("ranks the plain raw food first, using USDA's real order for \"banana\"", () => {
+    const usda = (description: string, dataType = "SR Legacy") =>
+      normaliseUsda({ fdcId: description.length, description, dataType, foodNutrients: [{ nutrientId: 1008, value: 100 }] })!;
+    // The order the live API returned.
+    const live = [
+      usda("BANANA", "Branded"),
+      usda("Bananas, dehydrated, or banana powder"),
+      usda("Bananas, raw"),
+      usda("Bananas, overripe, raw", "Foundation"),
+      usda("Melon, banana (Navajo)"),
+      usda("Pepper, banana, raw"),
+      usda("Babyfood, apple-banana juice"),
+    ];
+    expect(rankUsda(live, "banana").map((f) => f.name).slice(0, 4)).toEqual([
+      "Bananas, raw",
+      "Bananas, overripe, raw",
+      "Bananas, dehydrated, or banana powder",
+      "Pepper, banana, raw",
+    ]);
   });
 
   it("tries UPC-A and EAN-13 forms of a barcode", () => {

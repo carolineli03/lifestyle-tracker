@@ -165,12 +165,30 @@ export function normaliseUsda(f: UsdaFood): DbFood | null {
 }
 
 /**
- * USDA mixes generic foods with branded products whose names merely contain
- * the search words ("Greek yogurt" coating on dried cranberries). Generic
- * Foundation/SR Legacy entries go first; the API's own order is kept otherwise.
+ * USDA's own ranking isn't tuned for "what did I just eat": for "banana" it
+ * lists "Bananas, dehydrated, or banana powder" before "Bananas, raw". So:
+ *   - generic Foundation/SR Legacy foods come before branded products;
+ *   - within those, a name whose main word (before the first comma) matches the
+ *     search, a plain "raw" food, and a shorter, simpler name rank higher;
+ *   - baby food and powdered or dehydrated forms rank lower.
+ * The sort is stable, so ties keep the API's order.
  */
-export function genericFirst(foods: readonly DbFood[]): DbFood[] {
-  return [...foods].sort((a, b) => Number(a.sourceLabel !== "USDA") - Number(b.sourceLabel !== "USDA"));
+export function rankUsda(foods: readonly DbFood[], query: string): DbFood[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const score = (f: DbFood): number => {
+    const name = f.name.toLowerCase();
+    const head = name.split(",")[0] ?? name;
+    let n = 0;
+    if (words.length && words.every((w) => head.includes(w))) n += 3;
+    if (/\braw\b/.test(name)) n += 1;
+    if (/babyfood|baby food/.test(name)) n -= 3;
+    if (/dehydrated|powder/.test(name)) n -= 1;
+    return n;
+  };
+  return foods
+    .map((f, i) => ({ f, i, generic: f.sourceLabel === "USDA", s: score(f) }))
+    .sort((a, b) => Number(b.generic) - Number(a.generic) || b.s - a.s || a.f.name.length - b.f.name.length || a.i - b.i)
+    .map((x) => x.f);
 }
 
 /** Interleave the two sources and drop near-duplicates (same name and brand). */
