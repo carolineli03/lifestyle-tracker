@@ -12,6 +12,10 @@ import { MovementBars } from "@/components/progress/MovementBars";
 import { TargetCalculator } from "@/components/progress/TargetCalculator";
 import { TargetOverrides } from "@/components/progress/TargetOverrides";
 import { AiUsageCard } from "@/components/progress/AiUsageCard";
+import { WeeklyReportCard } from "@/components/progress/WeeklyReportCard";
+import { MeasurementsCard } from "@/components/progress/MeasurementsCard";
+import { PhotosCard } from "@/components/progress/PhotosCard";
+import { ExportCard } from "@/components/progress/ExportCard";
 import { ErrorNote } from "@/components/ErrorNote";
 
 /**
@@ -84,7 +88,18 @@ export function ProgressClient({ userId, initialProfile }: { userId: string; ini
         <StatRow stats={weightStats(points, startWeight, goalWeight)} />
       </section>
 
+      <WeeklyReportCard
+        today={today}
+        kcalTarget={profile?.kcal_target ?? null}
+        proteinTarget={profile?.protein_target ?? null}
+        waterGoalOz={profile?.water_goal_oz ?? 64}
+      />
+
       <MovementBars days={lastSevenDays(movement, today)} weeklyGoal={profile?.weekly_movement_goal ?? null} />
+
+      <MeasurementsCard userId={userId} today={today} />
+
+      <PhotosCard userId={userId} today={today} />
 
       {/* Keyed on the loaded weight so the calculator prefills once it arrives. */}
       <TargetCalculator
@@ -98,6 +113,8 @@ export function ProgressClient({ userId, initialProfile }: { userId: string; ini
       <TargetOverrides key={profile?.updated_at ?? "none"} profile={profile} onSave={save} />
 
       <AiUsageCard />
+
+      <ExportCard />
     </>
   );
 }

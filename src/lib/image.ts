@@ -17,7 +17,7 @@ export function fitWithin(width: number, height: number, max = MAX_EDGE): { widt
 export type PreparedImage = { base64: string; mediaType: "image/jpeg"; bytes: number };
 
 /** Browser-only: decode, downscale, re-encode as JPEG. Throws a message fit to show. */
-export async function prepareImage(file: File): Promise<PreparedImage> {
+export async function prepareImage(file: File, maxEdge = MAX_EDGE): Promise<PreparedImage> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -27,7 +27,7 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
     );
   }
 
-  const { width, height } = fitWithin(bitmap.width, bitmap.height);
+  const { width, height } = fitWithin(bitmap.width, bitmap.height, maxEdge);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
