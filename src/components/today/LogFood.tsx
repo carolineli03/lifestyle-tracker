@@ -16,15 +16,17 @@ import { FoodDbResults } from "./FoodDbResults";
 import { QuickAdd } from "./QuickAdd";
 import { VoiceButton } from "./VoiceButton";
 import { ErrorNote } from "@/components/ErrorNote";
+import { Segmented } from "@/components/ui/Segmented";
+import { Icon } from "@/components/ui/icons";
 
 type Tab = "search" | "scan" | "photo" | "describe" | "quick";
 
-const TABS: ReadonlyArray<{ value: Tab; label: string }> = [
-  { value: "search", label: "Search" },
-  { value: "scan", label: "Scan" },
-  { value: "photo", label: "Photo" },
-  { value: "describe", label: "Describe" },
-  { value: "quick", label: "Quick add" },
+const TABS: ReadonlyArray<{ value: Tab; label: React.ReactNode }> = [
+  { value: "search", label: <><Icon name="search" size={15} />Search</> },
+  { value: "scan", label: <><Icon name="barcode" size={15} />Scan</> },
+  { value: "photo", label: <><Icon name="camera" size={15} />Photo</> },
+  { value: "describe", label: <><Icon name="sparkle" size={15} />Describe</> },
+  { value: "quick", label: <><Icon name="bolt" size={15} />Quick</> },
 ];
 
 let draftCounter = 0;
@@ -66,13 +68,15 @@ export function LogFood({
   foods,
   onConfirm,
   busy,
+  initialMeal,
 }: {
   foods: readonly Food[];
   onConfirm: (items: readonly LogInput[]) => Promise<void>;
   busy: boolean;
+  initialMeal?: MealSlot;
 }) {
   const [tab, setTab] = useState<Tab>("search");
-  const [meal, setMeal] = useState<MealSlot>(() => defaultMeal());
+  const [meal, setMeal] = useState<MealSlot>(() => initialMeal ?? defaultMeal());
   const [query, setQuery] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -178,20 +182,8 @@ export function LogFood({
         </label>
       </div>
 
-      <div role="tablist" aria-label="How to log" className="mt-3 flex flex-wrap gap-1.5">
-        {TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.value}
-            data-active={tab === t.value}
-            className="chip"
-            onClick={() => setTab(t.value)}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mt-3">
+        <Segmented label="How to log" size="sm" value={tab} onChange={setTab} options={TABS} />
       </div>
 
       {tab === "scan" && (
@@ -314,9 +306,11 @@ export function LogFood({
       {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
 
       {drafts.length > 0 && (
-        <button type="button" className="btn btn-primary mt-4 w-full" onClick={() => void confirm()} disabled={busy}>
-          {busy ? "Adding…" : `Add ${drafts.length} ${drafts.length === 1 ? "item" : "items"} to ${SECTION_LABEL[meal].toLowerCase()}`}
-        </button>
+        <div className="sticky-action">
+          <button type="button" className="btn btn-primary w-full" onClick={() => void confirm()} disabled={busy}>
+            {busy ? "Adding…" : `Add ${drafts.length} ${drafts.length === 1 ? "item" : "items"} to ${SECTION_LABEL[meal].toLowerCase()}`}
+          </button>
+        </div>
       )}
     </section>
   );

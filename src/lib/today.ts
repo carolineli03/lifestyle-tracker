@@ -152,9 +152,16 @@ export async function fetchLoggedDays(since: IsoDate): Promise<IsoDate[]> {
   return (data ?? []).map((r) => r.logged_on);
 }
 
-export async function addWater(userId: string, date: IsoDate, amountOz: number): Promise<void> {
-  const { error } = await supabaseBrowser().from("water_logs").insert({ user_id: userId, logged_on: date, amount_oz: amountOz });
+/** Returns the new row's id, so an Undo can remove exactly this entry. */
+export async function addWater(userId: string, date: IsoDate, amountOz: number): Promise<string> {
+  const { data, error } = await supabaseBrowser()
+    .from("water_logs")
+    .insert({ user_id: userId, logged_on: date, amount_oz: amountOz })
+    .select("id")
+    .single();
   fail("Could not add water", error);
+  if (!data) throw new Error("Could not add water.");
+  return data.id;
 }
 
 export async function deleteWater(id: string): Promise<void> {

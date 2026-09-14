@@ -525,4 +525,26 @@
     color: var(--on-pine);
     box-shadow: var(--shadow-fab);
   }
+
+  /* Existing section cards reused inside a sheet: drop the card frame and the
+     duplicate heading (the sheet's title already names it). */
+  .in-sheet > section.card {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .in-sheet > section.card > h2,
+  .in-sheet > section.card > div:first-child > h2 {
+    display: none;
+  }
+  .sticky-action {
+    position: sticky;
+    bottom: -20px;
+    margin: 12px -20px -20px;
+    padding: 12px 20px 16px;
+    background: var(--paper);
+    border-top: 1px solid var(--line);
+  }
 }

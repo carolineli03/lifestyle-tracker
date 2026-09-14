@@ -1,20 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Food, Profile } from "@/lib/supabase/database.types";
-import { addDays, todayIso, type IsoDate } from "@/lib/date";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { Food, MealSlot, Profile } from "@/lib/supabase/database.types";
+import { addDays, describeDate, isFuture, todayIso, type IsoDate } from "@/lib/date";
 import { sumMacros, type MacroTotals, type Targets } from "@/lib/totals";
 import { sumNutrients } from "@/lib/nutrients";
 import { currentStreak } from "@/lib/report";
+import { defaultMeal, SECTION_LABEL } from "@/lib/meals";
 import * as api from "@/lib/today";
-import { DateStepper } from "@/components/today/DateStepper";
-import { CalorieHero } from "@/components/today/CalorieHero";
+import { TodayHero } from "@/components/today/TodayHero";
+import { QuickTiles } from "@/components/today/QuickTiles";
+import { MealList } from "@/components/today/MealList";
 import { LogFood } from "@/components/today/LogFood";
-import { MealSections } from "@/components/today/MealSections";
-import { WaterCard } from "@/components/today/WaterCard";
-import { MovementCard } from "@/components/today/MovementCard";
-import { WeighInCard } from "@/components/today/WeighInCard";
 import { ErrorNote } from "@/components/ErrorNote";
+import { SettingsLink } from "@/components/PageHeader";
+import { Icon } from "@/components/ui/icons";
+import { Sheet } from "@/components/ui/Sheet";
+import { useToast } from "@/components/ui/Toast";
 
 /**
  * The Today tab runs on the client rather than as a server component, and the
@@ -31,9 +34,23 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
   const [foods, setFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [removingEntry, setRemovingEntry] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loggedDays, setLoggedDays] = useState<IsoDate[]>([]);
+  const [logMeal, setLogMeal] = useState<MealSlot | null>(null);
+  const [logSession, setLogSession] = useState(0);
+  const toast = useToast();
+  const params = useSearchParams();
+  const router = useRouter();
+
+  // The centre + in the tab bar links here with ?log=1: open the log sheet,
+  // then drop the flag so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (params.get("log") === "1") {
+      setLogSession((n) => n + 1);
+      setLogMeal(defaultMeal());
+      router.replace("/today", { scroll: false });
+    }
+  }, [params, router]);
 
   const targets: Targets = {
     kcal: profile?.kcal_target ?? null,
@@ -124,22 +141,43 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
     }
   }
 
-  async function removeEntry(id: string): Promise<void> {
-    setRemovingEntry(id);
-    setError(null);
-    try {
-      await api.deleteEntry(id);
-      await reloadDay(date);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not remove that entry.");
-    } finally {
-      setRemovingEntry(null);
-    }
-  }
+
+
+  const streak = currentStreak(loggedDays, todayIso());
 
   return (
     <>
-      <DateStepper date={date} onChange={setDate} />
+      <header className="mb-3 flex items-center gap-1">
+        <button type="button" className="icon-btn -ml-2" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day">
+          <Icon name="chevron-left" size={22} />
+        </button>
+        <div className="min-w-0 flex-1 text-center">
+          <h1 className="t-section">{describeDate(date, todayIso())}</h1>
+          {date !== todayIso() ? (
+            <button type="button" className="t-meta font-semibold" style={{ color: "var(--pine)", minHeight: 0 }} onClick={() => setDate(todayIso())}>
+              Back to today
+            </button>
+          ) : (
+            streak >= 2 && (
+              <p className="t-meta">
+                <Icon name="flame" size={12} className="mr-1 inline align-[-1px]" />
+                {streak}-day streak
+              </p>
+            )
+          )}
+        </div>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setDate(addDays(date, 1))}
+          aria-label="Next day"
+          disabled={isFuture(addDays(date, 1), todayIso())}
+          style={isFuture(addDays(date, 1), todayIso()) ? { opacity: 0.3 } : undefined}
+        >
+          <Icon name="chevron-right" size={22} />
+        </button>
+        <SettingsLink />
+      </header>
 
       {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
 
@@ -147,7 +185,7 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
         <Skeleton />
       ) : (
         <>
-          <CalorieHero
+          <TodayHero
             eaten={eaten}
             targets={targets}
             exerciseKcal={exerciseKcal}
@@ -158,64 +196,87 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
               sugar: profile?.sugar_limit ?? null,
               sodium: profile?.sodium_limit ?? null,
             }}
-            streak={currentStreak(loggedDays, todayIso())}
           />
 
-          <LogFood foods={foods} onConfirm={confirmEntries} busy={busy} />
+          <QuickTiles
+            date={date}
+            water={day?.water ?? []}
+            waterGoalOz={profile?.water_goal_oz ?? 64}
+            weekMovement={day?.weekMovement ?? []}
+            weeklyGoal={profile?.weekly_movement_goal ?? null}
+            weighIn={day?.weighIn ?? null}
+            onAddWater={async (oz) => {
+              const id = await api.addWater(userId, date, oz);
+              await reloadDay(date);
+              return id;
+            }}
+            onUndoWater={async (id) => {
+              await api.deleteWater(id);
+              await reloadDay(date);
+            }}
+            onAddMovement={async (kind, minutes) => {
+              await api.addMovement(userId, date, kind, minutes, day?.latestWeightLb ?? null);
+              await reloadDay(date);
+            }}
+            onRemoveMovement={async (id) => {
+              await api.deleteMovement(id);
+              await reloadDay(date);
+            }}
+            onSaveWeight={async (lb) => {
+              await api.saveWeighIn(userId, date, lb);
+              await reloadDay(date);
+            }}
+            onRemoveWeight={async (id) => {
+              await api.deleteWeighIn(id);
+              await reloadDay(date);
+            }}
+          />
 
-          <MealSections
+          <div className="mb-1 mt-6 flex items-center justify-between px-1">
+            <h2 className="t-label">Meals</h2>
+            <span className="t-meta">{Math.round(eaten.kcal).toLocaleString()} kcal</span>
+          </div>
+          <MealList
             date={date}
             entries={day?.entries ?? []}
-            onRemove={(id) => void removeEntry(id)}
-            removing={removingEntry}
+            onAdd={(meal) => setLogMeal(meal)}
+            onRemove={async (id) => {
+              await api.deleteEntry(id);
+              await reloadDay(date);
+            }}
             onCopy={async (fromDate, fromMeal, toMeal) => {
               const n = await api.copyMealFrom(userId, fromDate, fromMeal, date, toMeal);
               if (n > 0) await reloadDay(date);
               return n;
             }}
           />
-
-          <WaterCard
-            logs={day?.water ?? []}
-            goalOz={profile?.water_goal_oz ?? 64}
-            onAdd={async (oz) => {
-              await api.addWater(userId, date, oz);
-              await reloadDay(date);
-            }}
-            onUndo={async (id) => {
-              await api.deleteWater(id);
-              await reloadDay(date);
-            }}
-          />
-
-          <MovementCard
-            date={date}
-            weekMovement={day?.weekMovement ?? []}
-            weeklyGoal={profile?.weekly_movement_goal ?? null}
-            onAdd={async (kind, minutes) => {
-              await api.addMovement(userId, date, kind, minutes, day?.latestWeightLb ?? null);
-              await reloadDay(date);
-            }}
-            onRemove={async (id) => {
-              await api.deleteMovement(id);
-              await reloadDay(date);
-            }}
-          />
-
-          <WeighInCard
-            date={date}
-            weighIn={day?.weighIn ?? null}
-            onSave={async (lb) => {
-              await api.saveWeighIn(userId, date, lb);
-              await reloadDay(date);
-            }}
-            onRemove={async (id) => {
-              await api.deleteWeighIn(id);
-              await reloadDay(date);
-            }}
-          />
         </>
       )}
+
+      <Sheet
+        open={logMeal !== null}
+        onClose={() => setLogMeal(null)}
+        title={date === todayIso() ? "Log food" : `Log food · ${describeDate(date, todayIso())}`}
+      >
+        {logMeal && (
+          <div className="in-sheet">
+            <LogFood
+              key={`${logMeal}-${logSession}`}
+              foods={foods}
+              busy={busy}
+              initialMeal={logMeal}
+              onConfirm={async (items) => {
+                await confirmEntries(items);
+                const meal = items[0]?.meal;
+                toast({
+                  message: `Added ${items.length === 1 ? items[0]!.name : `${items.length} items`}${meal ? ` to ${SECTION_LABEL[meal].toLowerCase()}` : ""}`,
+                });
+                setLogMeal(null);
+              }}
+            />
+          </div>
+        )}
+      </Sheet>
     </>
   );
 }
