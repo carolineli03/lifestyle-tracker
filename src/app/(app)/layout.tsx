@@ -10,7 +10,7 @@ import { getSession } from "@/lib/household";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/start");
   if (!session.household) redirect("/onboarding");
 
   return (

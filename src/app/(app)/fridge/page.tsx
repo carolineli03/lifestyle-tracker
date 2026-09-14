@@ -7,13 +7,18 @@ export const metadata = { title: "Fridge · Lifestyle Tracker" };
 
 export default async function FridgePage() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/start");
   if (!session.household) redirect("/onboarding");
 
   return (
     <>
       <PageHeader title="Fridge" />
-      <FridgeClient userId={session.userId} household={session.household} />
+      <FridgeClient
+        userId={session.userId}
+        household={session.household}
+        isGuest={session.isGuest}
+        email={session.email}
+      />
     </>
   );
 }

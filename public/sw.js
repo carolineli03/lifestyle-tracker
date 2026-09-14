@@ -57,7 +57,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   if (url.origin === self.location.origin) {
-    if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/") || url.pathname === "/login") return;
+    if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/") || url.pathname === "/login" || url.pathname === "/start") return;
 
     if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
       event.respondWith(cacheFirst(request, STATIC));

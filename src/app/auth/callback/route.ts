@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
 
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
-  if (tokenHash && (type === "magiclink" || type === "email" || type === "signup")) {
+  // email_change is a guest adding an email from the Fridge tab.
+  if (tokenHash && (type === "magiclink" || type === "email" || type === "signup" || type === "email_change")) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
     if (!error) return NextResponse.redirect(new URL(destination, origin));
     return NextResponse.redirect(
