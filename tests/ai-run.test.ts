@@ -1,18 +1,19 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
 import { classifyError, runStructured, type AiDeps, type ModelReply } from "../src/lib/ai/core.js";
-import { AI_CALLS_PER_HOUR, EstimateResponse } from "../src/lib/ai/schemas.js";
+import { AI_CALLS_PER_DAY_ALL, AI_CALLS_PER_HOUR, EstimateResponse } from "../src/lib/ai/schemas.js";
 
 const NOW = new Date("2026-09-13T18:00:00Z");
 const eggs = { name: "2 scrambled eggs", kcal: 182, protein: 12.2, carbs: 2, fat: 13.6 };
 
-function harness(opts: { reply?: ModelReply; throws?: unknown; recent?: Date[]; apiKey?: string | undefined } = {}) {
+function harness(opts: { reply?: ModelReply; throws?: unknown; recent?: Date[]; everyone?: number; apiKey?: string | undefined } = {}) {
   const logged: Parameters<AiDeps["logUsage"]>[0][] = [];
   let calls = 0;
   const deps: AiDeps = {
     apiKey: "apiKey" in opts ? opts.apiKey : "sk-test",
     now: () => NOW,
     recentCalls: async () => opts.recent ?? [],
+    globalCallsSince: async () => opts.everyone ?? 0,
     logUsage: async (row) => {
       logged.push(row);
     },
@@ -68,6 +69,14 @@ describe("runStructured", () => {
     if (!out.ok) expect(out.message).toContain("Try again in 10 min");
     expect(h.calls()).toBe(0);
     expect(h.logged).toEqual([]);
+  });
+
+  it("stops every account once the whole app hits its daily cap", async () => {
+    const h = harness({ everyone: AI_CALLS_PER_DAY_ALL });
+    const out = await runStructured(job, h.deps);
+    expect(out).toMatchObject({ ok: false, status: 429, code: "rate_limited" });
+    if (!out.ok) expect(out.message).toContain("daily AI limit");
+    expect(h.calls()).toBe(0);
   });
 
   it("allows the call just under the limit", async () => {

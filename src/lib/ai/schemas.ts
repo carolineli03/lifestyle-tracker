@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Response shapes for the four AI routes, shared by the server (to validate
+ * Response shapes for the AI routes, shared by the server (to validate
  * what the model sends back) and the browser (to type what the route returns).
  *
  * Structured outputs need an object at the root, so each list is wrapped as
@@ -17,6 +17,12 @@ export const AI_PRICING: Record<string, { input: number; output: number }> = {
 
 /** Calls per user per rolling hour, across all four routes. */
 export const AI_CALLS_PER_HOUR = 20;
+
+/**
+ * Calls across every account per rolling 24 hours. Guest accounts are free to
+ * create, so this — not the per-person limit — is what bounds the bill.
+ */
+export const AI_CALLS_PER_DAY_ALL = 150;
 
 export type AiRoute = "estimate" | "photo" | "sort-groceries" | "cook" | "prep-plan" | "import-recipe";
 
@@ -98,6 +104,8 @@ export const MealIdea = z.object({
   minutes: z.number().int(),
   method: z.string(),
   uses: z.array(z.string()),
+  /** Ingredient lines with amounts for ONE serving, so the idea can be saved as a recipe. */
+  ingredients: z.array(z.string()),
 });
 export const CookResponse = z.object({ items: z.array(MealIdea) });
 export type MealIdea = z.infer<typeof MealIdea>;
@@ -121,6 +129,8 @@ export const PrepComponent = z.object({
   storage: z.string(),
   reheat: z.string(),
   uses: z.array(z.string()),
+  /** Ingredient lines with amounts for the whole batch. */
+  ingredients: z.array(z.string()),
 });
 export const PrepPlanResponse = z.object({
   components: z.array(PrepComponent),
@@ -133,6 +143,24 @@ export const PrepPlanRequest = z.object({
   date: IsoDateString,
   servings: z.number().int().min(2).max(10),
 });
+
+// --- import recipe ----------------------------------------------------------
+
+export const ImportRecipeRequest = z.object({
+  text: z.string().trim().min(20, "Paste the whole recipe, including the ingredients.").max(12000, "That's too long to import — trim it to the recipe itself."),
+});
+
+export const ImportedRecipe = z.object({
+  name: z.string(),
+  /** How many servings the recipe as written makes; null if it doesn't say. */
+  servings: z.number().nullable(),
+  ingredients: z.array(z.string()),
+  method: z.string(),
+  per_serving: z
+    .object({ kcal: z.number(), protein: z.number(), carbs: z.number(), fat: z.number() })
+    .nullable(),
+});
+export type ImportedRecipe = z.infer<typeof ImportedRecipe>;
 
 // --- errors -----------------------------------------------------------------
 

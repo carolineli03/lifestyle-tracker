@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseLoose, stripFences } from "../src/lib/ai/parse.js";
-import { CookResponse, EstimateResponse, SortResponse } from "../src/lib/ai/schemas.js";
+import { CookResponse, EstimateResponse, ImportedRecipe, SortResponse } from "../src/lib/ai/schemas.js";
 
 const eggs = { name: "2 scrambled eggs", kcal: 182, protein: 12.2, carbs: 2, fat: 13.6 };
 
@@ -67,8 +67,20 @@ describe("parseLoose", () => {
     expect(r.ok).toBe(false);
   });
 
-  it("validates a cook idea including its uses list", () => {
-    const idea = { name: "Chicken fried rice", kcal: 520, protein: 38, carbs: 55, fat: 14, minutes: 25, method: "Fry it.", uses: ["Chicken thighs", "Rice"] };
+  it("validates a cook idea including its uses and ingredients", () => {
+    const idea = { name: "Chicken fried rice", kcal: 520, protein: 38, carbs: 55, fat: 14, minutes: 25, method: "Fry it.", uses: ["Chicken thighs", "Rice"], ingredients: ["6 oz chicken thighs", "1 cup cooked rice"] };
     expect(parseLoose(JSON.stringify({ items: [idea] }), CookResponse).ok).toBe(true);
+  });
+});
+
+describe("ImportedRecipe", () => {
+  it("accepts a recipe that doesn't say how many it serves", () => {
+    const reply = { name: "Chili", servings: null, ingredients: ["2 lb beef"], method: "1. Cook.", per_serving: null };
+    expect(parseLoose(JSON.stringify(reply), ImportedRecipe)).toEqual({ ok: true, value: reply });
+  });
+
+  it("rejects a recipe with ingredients as one blob instead of lines", () => {
+    const reply = { name: "Chili", servings: 6, ingredients: "2 lb beef, 1 onion", method: "Cook.", per_serving: null };
+    expect(parseLoose(JSON.stringify(reply), ImportedRecipe).ok).toBe(false);
   });
 });

@@ -1,32 +1,134 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { postAi } from "@/lib/ai/client";
 import { CookResponse, MEAL_TYPES, PrepPlanResponse, type MealIdea, type MealType, type PrepPlan } from "@/lib/ai/schemas";
 import { todayIso } from "@/lib/date";
 import { logEntry } from "@/lib/today";
 import { ErrorNote } from "@/components/ErrorNote";
+import { WeekPlanner } from "@/components/cook/WeekPlanner";
+import { RecipeBook } from "@/components/cook/RecipeBook";
+import { addRecipe, fetchRecipes, type NewRecipe } from "@/lib/planner-data";
+import type { Recipe } from "@/lib/supabase/database.types";
 
 /**
  * Client-side because the ideas are for *today* — the phone's today. The
  * browser only sends that date; the server reads the kitchen and the day's
  * log itself.
  */
-export function CookClient() {
+type Section = "ideas" | "plan" | "recipes";
+
+const SECTIONS: ReadonlyArray<{ value: Section; label: string }> = [
+  { value: "ideas", label: "Ideas" },
+  { value: "plan", label: "Plan" },
+  { value: "recipes", label: "Recipes" },
+];
+
+type SaveRecipe = (recipe: NewRecipe) => Promise<void>;
+
+export function CookClient({ householdId, userId }: { householdId: string; userId: string }) {
+  const [section, setSection] = useState<Section>("ideas");
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipeError, setRecipeError] = useState<string | null>(null);
+
+  const loadRecipes = useCallback(async () => {
+    setRecipes(await fetchRecipes());
+  }, []);
+
+  useEffect(() => {
+    loadRecipes().catch((cause: unknown) =>
+      setRecipeError(cause instanceof Error ? cause.message : "Could not load recipes."),
+    );
+  }, [loadRecipes]);
+
+  const saveRecipe: SaveRecipe = async (recipe) => {
+    await addRecipe(householdId, userId, recipe);
+    await loadRecipes();
+  };
+
   return (
     <>
-      <Ideas />
-      <PrepPlanner />
-      <p className="mt-4 text-center text-[13px] text-muted">
-        Ideas come from what&rsquo;s on the{" "}
-        <Link href="/fridge" className="font-semibold underline" style={{ color: "var(--pine)" }}>
-          Fridge tab
-        </Link>
-        , soonest use-by first.
-      </p>
+      <div role="tablist" aria-label="Cook" className="grid grid-cols-3 gap-1 rounded-pill border border-line bg-card p-1">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            role="tab"
+            aria-selected={section === s.value}
+            onClick={() => setSection(s.value)}
+            className={`rounded-pill text-[14px] font-semibold ${section === s.value ? "bg-pine text-on-pine" : "text-muted"}`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {recipeError && <ErrorNote message={recipeError} onDismiss={() => setRecipeError(null)} />}
+
+      {section === "ideas" && (
+        <>
+          <Ideas onSave={saveRecipe} savedNames={recipes.map((r) => r.name)} />
+          <PrepPlanner onSave={saveRecipe} savedNames={recipes.map((r) => r.name)} />
+          <p className="mt-4 text-center text-[13px] text-muted">
+            Ideas come from what&rsquo;s on the{" "}
+            <Link href="/fridge" className="font-semibold underline" style={{ color: "var(--pine)" }}>
+              Fridge tab
+            </Link>
+            , soonest use-by first.
+          </p>
+        </>
+      )}
+      {section === "plan" && (
+        <WeekPlanner
+          householdId={householdId}
+          userId={userId}
+          recipes={recipes}
+          onGoToRecipes={() => setSection("recipes")}
+        />
+      )}
+      {section === "recipes" && (
+        <RecipeBook householdId={householdId} userId={userId} recipes={recipes} onChanged={loadRecipes} />
+      )}
     </>
   );
+}
+
+/** "Save recipe" → "Saved ✓", or the reason it couldn't be. */
+function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => Promise<void> }) {
+  const [state, setState] = useState<"idle" | "saving" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        className="btn btn-quiet w-full"
+        disabled={saved || state === "saving"}
+        onClick={() => {
+          setState("saving");
+          setMessage(null);
+          onSave()
+            .then(() => setState("idle"))
+            .catch((cause: unknown) => {
+              setState("error");
+              setMessage(cause instanceof Error ? cause.message : "That didn't save.");
+            });
+        }}
+      >
+        {saved ? "In your recipes ✓" : state === "saving" ? "Saving…" : "Save recipe"}
+      </button>
+      {message && (
+        <p className="mt-1 text-[13px]" style={{ color: "var(--tomato)" }} role="alert">
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function isSaved(name: string, savedNames: readonly string[]): boolean {
+  const key = name.trim().toLowerCase();
+  return savedNames.some((n) => n.trim().toLowerCase() === key);
 }
 
 const MEAL_LABEL: Record<MealType, string> = {
@@ -37,7 +139,7 @@ const MEAL_LABEL: Record<MealType, string> = {
   snack: "Snack",
 };
 
-function Ideas() {
+function Ideas({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: readonly string[] }) {
   const [meal, setMeal] = useState<MealType>("any");
   const [ideas, setIdeas] = useState<MealIdea[]>([]);
   const [loading, setLoading] = useState(false);
@@ -133,6 +235,22 @@ function Ideas() {
                 >
                   {logged[i] === "done" ? "Logged to today ✓" : logged[i] === "saving" ? "Logging…" : "Log this"}
                 </button>
+                <SaveButton
+                  saved={isSaved(idea.name, savedNames)}
+                  onSave={() =>
+                    onSave({
+                      name: idea.name,
+                      servings: 1,
+                      ingredients: idea.ingredients,
+                      method: idea.method,
+                      kcal: idea.kcal,
+                      protein_g: idea.protein,
+                      carb_g: idea.carbs,
+                      fat_g: idea.fat,
+                      source: "idea",
+                    })
+                  }
+                />
               </li>
             ))}
           </ul>
@@ -142,8 +260,10 @@ function Ideas() {
   );
 }
 
-function PrepPlanner() {
+function PrepPlanner({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: readonly string[] }) {
   const [servings, setServings] = useState(5);
+  // The count the current plan was made for; the stepper can move after.
+  const [planServings, setPlanServings] = useState(5);
   const [plan, setPlan] = useState<PrepPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,6 +278,7 @@ function PrepPlanner() {
         return;
       }
       setPlan(result);
+      setPlanServings(servings);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't make a plan right now.");
     } finally {
@@ -245,6 +366,22 @@ function PrepPlanner() {
                     </div>
                   </dl>
                   {c.uses.length > 0 && <Uses items={c.uses} />}
+                  <SaveButton
+                    saved={isSaved(c.name, savedNames)}
+                    onSave={() =>
+                      onSave({
+                        name: c.name,
+                        servings: planServings,
+                        ingredients: c.ingredients,
+                        method: [c.method, `Storage: ${c.storage}`, `Reheat: ${c.reheat}`].join("\n"),
+                        kcal: c.per_portion.kcal,
+                        protein_g: c.per_portion.protein,
+                        carb_g: c.per_portion.carbs,
+                        fat_g: c.per_portion.fat,
+                        source: "idea",
+                      })
+                    }
+                  />
                 </li>
               ))}
             </ul>

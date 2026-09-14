@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { z } from "zod";
 import { parseLoose } from "./parse";
-import { AI_CALLS_PER_HOUR, AI_MODEL, type AiErrorCode, type AiRoute } from "./schemas";
+import { AI_CALLS_PER_DAY_ALL, AI_CALLS_PER_HOUR, AI_MODEL, type AiErrorCode, type AiRoute } from "./schemas";
 
 /**
  * The part of every AI route that is not specific to any one of them: rate
@@ -26,6 +26,8 @@ export type AiDeps = {
   now: () => Date;
   /** This user's calls since `since`, oldest first (only timestamps needed). */
   recentCalls: (since: Date) => Promise<Date[]>;
+  /** Calls by everyone since `since` — a bare count, nothing else. */
+  globalCallsSince: (since: Date) => Promise<number>;
   logUsage: (row: { route: AiRoute; model: string; input_tokens: number; output_tokens: number; ok: boolean }) => Promise<void>;
   callModel: (args: { system: string; user: UserContent; schema: z.ZodType; effort: "low" | "medium" }) => Promise<ModelReply>;
 };
@@ -38,6 +40,7 @@ export function fail(status: number, code: AiErrorCode, message: string): AiFail
 }
 
 const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 export async function runStructured<S extends z.ZodType>(
   job: { route: AiRoute; system: string; user: UserContent; schema: S; effort: "low" | "medium" },
@@ -56,6 +59,15 @@ export async function runStructured<S extends z.ZodType>(
       429,
       "rate_limited",
       `That's ${AI_CALLS_PER_HOUR} AI requests in the last hour, which is the limit. Try again in ${minutes} min, or enter it by hand.`,
+    );
+  }
+
+  const everyone = await deps.globalCallsSince(new Date(now.getTime() - DAY_MS));
+  if (everyone >= AI_CALLS_PER_DAY_ALL) {
+    return fail(
+      429,
+      "rate_limited",
+      "The app has hit its daily AI limit, which keeps the bill in check. It resets over the next 24 hours — until then, enter things by hand.",
     );
   }
 
