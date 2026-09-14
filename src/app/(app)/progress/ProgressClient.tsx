@@ -109,8 +109,7 @@ export function ProgressClient({ userId, initialProfile }: { userId: string; ini
         onSave={save}
       />
 
-      {/* Re-seeded after any save so a calculator result shows up in the fields. */}
-      <TargetOverrides key={profile?.updated_at ?? "none"} profile={profile} onSave={save} />
+      <TargetOverrides profile={profile} onSave={save} />
 
       <AiUsageCard />
 

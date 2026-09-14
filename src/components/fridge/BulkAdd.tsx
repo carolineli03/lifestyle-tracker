@@ -96,7 +96,7 @@ export function BulkAdd({ onAdd }: { onAdd: (items: NewPantryItem[]) => Promise<
         </form>
       ) : (
         <div className="mt-3">
-          <ul className="grid gap-3">
+          <ul className="grid grid-cols-1 gap-3">
             {rows.map((row) => (
               <li
                 key={row.key}

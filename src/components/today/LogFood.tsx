@@ -245,7 +245,7 @@ export function LogFood({
           {showSuggestions && (
             <>
               {query.trim() && <p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-muted">Your foods</p>}
-              <ul className="mt-2 grid gap-1">
+              <ul className="mt-2 grid grid-cols-1 gap-1">
                 {matches.map((food) => (
                   <li key={food.id}>
                     <button

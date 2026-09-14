@@ -219,7 +219,7 @@ function Ideas({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: readonl
 
       <div aria-live="polite">
         {ideas.length > 0 && (
-          <ul className="mt-4 grid gap-3">
+          <ul className="mt-4 grid grid-cols-1 gap-3">
             {ideas.map((idea, i) => (
               <li key={`${idea.name}-${i}`} className="rounded-field p-4" style={{ border: "1px solid var(--line)" }}>
                 <h3 className="font-display text-[17px] font-semibold leading-snug">{idea.name}</h3>
@@ -348,7 +348,7 @@ function PrepPlanner({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: r
               <span className="font-semibold text-ink">{Math.round(perLunch.kcal)} kcal</span> ·{" "}
               {Math.round(perLunch.protein)}g protein
             </p>
-            <ul className="mt-3 grid gap-3">
+            <ul className="mt-3 grid grid-cols-1 gap-3">
               {plan.components.map((c, i) => (
                 <li key={`${c.name}-${i}`} className="rounded-field p-4" style={{ border: "1px solid var(--line)" }}>
                   <h3 className="font-display text-[17px] font-semibold">{c.name}</h3>
@@ -357,7 +357,7 @@ function PrepPlanner({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: r
                     {Math.round(c.per_portion.carbs)}c · {Math.round(c.per_portion.fat)}f
                   </p>
                   <p className="mt-2 text-[14px] leading-relaxed">{c.method}</p>
-                  <dl className="mt-2 grid gap-1 text-[13px]">
+                  <dl className="mt-2 grid grid-cols-1 gap-1 text-[13px]">
                     <div>
                       <dt className="inline font-semibold">Storage: </dt>
                       <dd className="inline">{c.storage}</dd>
@@ -390,7 +390,7 @@ function PrepPlanner({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: r
             {plan.assembly.length > 0 && (
               <>
                 <h3 className="mt-4 text-[13px] font-semibold text-muted">Putting lunches together</h3>
-                <ol className="mt-1 grid list-decimal gap-1 pl-5 text-[14px]">
+                <ol className="mt-1 grid grid-cols-1 list-decimal gap-1 pl-5 text-[14px]">
                   {plan.assembly.map((step, i) => (
                     <li key={i}>{step}</li>
                   ))}

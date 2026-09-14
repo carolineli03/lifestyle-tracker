@@ -35,7 +35,7 @@ export function MealSections({
         </span>
       </div>
 
-      <div className="mt-2 grid gap-3">
+      <div className="mt-2 grid grid-cols-1 gap-3">
         {sections.map((section) => (
           <div key={section.key} className="border-t pt-3" style={{ borderColor: "var(--line)" }}>
             <div className="flex items-center justify-between gap-2">
@@ -51,7 +51,7 @@ export function MealSections({
             {section.entries.length === 0 ? (
               <p className="text-[13px] text-muted">Nothing yet.</p>
             ) : (
-              <ul className="mt-1 grid">
+              <ul className="mt-1 grid grid-cols-1">
                 {section.entries.map((entry) => (
                   <li key={entry.id} className="flex items-center gap-3 py-1.5">
                     <div className="min-w-0 flex-1">
@@ -135,11 +135,11 @@ function CopyMeal({
     <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[640px] rounded-t-card border bg-card p-5 shadow-lg" style={{ borderColor: "var(--line)" }} role="dialog" aria-label={`Copy into ${SECTION_LABEL[toMeal]}`}>
       <h3 className="font-display text-lg font-semibold">Copy into {SECTION_LABEL[toMeal].toLowerCase()}</h3>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <label className="grid gap-1">
+        <label className="grid grid-cols-1 gap-1">
           <span className="text-[12px] font-semibold text-muted">From day</span>
           <input type="date" className="field" value={from} max={date} onChange={(e) => setFrom(e.target.value)} />
         </label>
-        <label className="grid gap-1">
+        <label className="grid grid-cols-1 gap-1">
           <span className="text-[12px] font-semibold text-muted">Meal</span>
           <select className="field" value={fromMeal} onChange={(e) => setFromMeal(e.target.value as MealSlot)}>
             {MEAL_SLOTS.map((m) => (

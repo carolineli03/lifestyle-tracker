@@ -57,7 +57,7 @@ export function InventoryList({
             <span className="text-[15px] font-normal text-muted">({group.items.length})</span>
           </h2>
 
-          <ul className="mt-3 grid">
+          <ul className="mt-3 grid grid-cols-1">
             {group.items.map((item) => {
               const open = openId === item.id;
               return (

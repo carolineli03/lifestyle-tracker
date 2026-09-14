@@ -138,7 +138,7 @@ export function MovementCard({
       {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
 
       {forToday.length > 0 && (
-        <ul className="mt-3 grid gap-1">
+        <ul className="mt-3 grid grid-cols-1 gap-1">
           {forToday.map((m) => (
             <li
               key={m.id}

@@ -67,7 +67,7 @@ export function FridgeClient({
 
   if (loading && !data) {
     return (
-      <div aria-busy="true" aria-live="polite" className="grid gap-4">
+      <div aria-busy="true" aria-live="polite" className="grid grid-cols-1 gap-4">
         <span className="sr-only">Loading the kitchen…</span>
         {[120, 180, 160].map((h, i) => (
           <div
@@ -92,7 +92,7 @@ export function FridgeClient({
           <h2 className="text-[13px] font-semibold" style={{ color: "var(--marigold)" }}>
             Use these up
           </h2>
-          <ul className="mt-2 grid gap-1">
+          <ul className="mt-2 grid grid-cols-1 gap-1">
             {soon.slice(0, 4).map((item) => (
               <li key={item.id} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-[15px]">{item.name}</span>
