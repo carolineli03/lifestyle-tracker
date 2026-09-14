@@ -22,7 +22,7 @@ export function OfflineBanner() {
   return (
     <div
       role="status"
-      className="sticky top-0 z-20 -mx-5 mb-3 px-5 py-2 text-center text-[13px] font-semibold"
+      className="sticky top-0 z-20 -mx-4 mb-3 px-4 py-2 text-center text-[13px] font-semibold"
       style={{ background: "var(--marigold-wash)", color: "var(--ink)", borderBottom: "1px solid var(--marigold)" }}
     >
       Offline — showing what was last loaded. Changes won&rsquo;t save until you&rsquo;re back online.

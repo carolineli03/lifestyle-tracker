@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { ToastProvider } from "@/components/ui/Toast";
 import { getSession } from "@/lib/household";
 
 /**
@@ -14,13 +15,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session.household) redirect("/onboarding");
 
   return (
-    <div className="min-h-dvh">
-      {/* Desktop is just the mobile column, centred. */}
-      <div className="mx-auto w-full max-w-[640px] px-5 pt-4" style={{ paddingBottom: 88 }}>
-        <OfflineBanner />
-        {children}
+    <ToastProvider>
+      <div className="min-h-dvh">
+        {/* Desktop is just the mobile column, centred. */}
+        <div className="mx-auto w-full max-w-[640px] px-4 pt-3" style={{ paddingBottom: "calc(104px + env(safe-area-inset-bottom))" }}>
+          <OfflineBanner />
+          {children}
+        </div>
+        <BottomNav />
       </div>
-      <BottomNav />
-    </div>
+    </ToastProvider>
   );
 }
