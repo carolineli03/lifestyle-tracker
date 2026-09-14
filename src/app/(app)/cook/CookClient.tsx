@@ -8,6 +8,9 @@ import { todayIso } from "@/lib/date";
 import { logEntry } from "@/lib/today";
 import { defaultMeal } from "@/lib/meals";
 import { ErrorNote } from "@/components/ErrorNote";
+import { Segmented } from "@/components/ui/Segmented";
+import { Sheet } from "@/components/ui/Sheet";
+import { Icon } from "@/components/ui/icons";
 import { WeekPlanner } from "@/components/cook/WeekPlanner";
 import { RecipeBook } from "@/components/cook/RecipeBook";
 import { addRecipe, fetchRecipes, type NewRecipe } from "@/lib/planner-data";
@@ -20,7 +23,7 @@ import type { Recipe } from "@/lib/supabase/database.types";
  */
 type Section = "ideas" | "plan" | "recipes";
 
-const SECTIONS: ReadonlyArray<{ value: Section; label: string }> = [
+const SECTIONS: ReadonlyArray<{ value: Section; label: React.ReactNode }> = [
   { value: "ideas", label: "Ideas" },
   { value: "plan", label: "Plan" },
   { value: "recipes", label: "Recipes" },
@@ -30,6 +33,7 @@ type SaveRecipe = (recipe: NewRecipe) => Promise<void>;
 
 export function CookClient({ householdId, userId }: { householdId: string; userId: string }) {
   const [section, setSection] = useState<Section>("ideas");
+  const [prepOpen, setPrepOpen] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipeError, setRecipeError] = useState<string | null>(null);
 
@@ -50,34 +54,40 @@ export function CookClient({ householdId, userId }: { householdId: string; userI
 
   return (
     <>
-      <div role="tablist" aria-label="Cook" className="grid grid-cols-3 gap-1 rounded-pill border border-line bg-card p-1">
-        {SECTIONS.map((s) => (
-          <button
-            key={s.value}
-            type="button"
-            role="tab"
-            aria-selected={section === s.value}
-            onClick={() => setSection(s.value)}
-            className={`rounded-pill text-[14px] font-semibold ${section === s.value ? "bg-pine text-on-pine" : "text-muted"}`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+      <Segmented label="Cook" value={section} onChange={setSection} options={SECTIONS} />
 
       {recipeError && <ErrorNote message={recipeError} onDismiss={() => setRecipeError(null)} />}
 
       {section === "ideas" && (
         <>
           <Ideas onSave={saveRecipe} savedNames={recipes.map((r) => r.name)} />
-          <PrepPlanner onSave={saveRecipe} savedNames={recipes.map((r) => r.name)} />
-          <p className="mt-4 text-center text-[13px] text-muted">
-            Ideas come from what&rsquo;s on the{" "}
+
+          <button type="button" className="list mt-3 w-full text-left" onClick={() => setPrepOpen(true)}>
+            <span className="list-row">
+              <span className="list-row-lead" aria-hidden="true">
+                <Icon name="calendar" size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold">Sunday prep</span>
+                <span className="t-meta block">Batch a week of lunches from what you have</span>
+              </span>
+              <Icon name="chevron-right" size={18} className="text-muted" />
+            </span>
+          </button>
+
+          <p className="t-meta mt-4 text-center">
+            Ideas use what&rsquo;s in the{" "}
             <Link href="/fridge" className="font-semibold underline" style={{ color: "var(--pine)" }}>
-              Fridge tab
+              Kitchen
             </Link>
             , soonest use-by first.
           </p>
+
+          <Sheet open={prepOpen} onClose={() => setPrepOpen(false)} title="Sunday prep">
+            <div className="in-sheet">
+              <PrepPlanner onSave={saveRecipe} savedNames={recipes.map((r) => r.name)} />
+            </div>
+          </Sheet>
         </>
       )}
       {section === "plan" && (
@@ -100,7 +110,7 @@ function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => Promise<v
   const [state, setState] = useState<"idle" | "saving" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   return (
-    <div className="mt-2">
+    <div>
       <button
         type="button"
         className="btn btn-quiet w-full"
@@ -116,7 +126,7 @@ function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => Promise<v
             });
         }}
       >
-        {saved ? "In your recipes ✓" : state === "saving" ? "Saving…" : "Save recipe"}
+        {saved ? "Saved ✓" : state === "saving" ? "Saving…" : "Save recipe"}
       </button>
       {message && (
         <p className="mt-1 text-[13px]" style={{ color: "var(--tomato)" }} role="alert">
@@ -189,7 +199,7 @@ function Ideas({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: readonl
   }
 
   return (
-    <section className="card p-5" aria-labelledby="ideas-heading">
+    <section className="card mt-3 p-4" aria-labelledby="ideas-heading">
       <h2 id="ideas-heading" className="font-display text-lg font-semibold">
         What can I make?
       </h2>
@@ -221,21 +231,22 @@ function Ideas({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: readonl
         {ideas.length > 0 && (
           <ul className="mt-4 grid grid-cols-1 gap-3">
             {ideas.map((idea, i) => (
-              <li key={`${idea.name}-${i}`} className="rounded-field p-4" style={{ border: "1px solid var(--line)" }}>
+              <li key={`${idea.name}-${i}`} className="rounded-field p-3.5" style={{ border: "1px solid var(--line)" }}>
                 <h3 className="font-display text-[17px] font-semibold leading-snug">{idea.name}</h3>
                 <p className="mt-1 text-[13px] text-muted">
                   <span className="font-semibold text-ink">{Math.round(idea.kcal)} kcal</span> · {Math.round(idea.protein)}g
                   protein · {Math.round(idea.carbs)}g carbs · {Math.round(idea.fat)}g fat · {idea.minutes} min
                 </p>
-                <p className="mt-2 text-[14px] leading-relaxed">{idea.method}</p>
                 {idea.uses.length > 0 && <Uses items={idea.uses} />}
+                <Method text={idea.method} />
+                <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className={`btn mt-3 w-full ${logged[i] === "done" ? "btn-quiet" : "btn-primary"}`}
+                  className={`btn ${logged[i] === "done" ? "btn-quiet" : "btn-primary"}`}
                   onClick={() => void log(i, idea)}
                   disabled={logged[i] !== undefined}
                 >
-                  {logged[i] === "done" ? "Logged to today ✓" : logged[i] === "saving" ? "Logging…" : "Log this"}
+                  {logged[i] === "done" ? "Logged ✓" : logged[i] === "saving" ? "Logging…" : "Log this"}
                 </button>
                 <SaveButton
                   saved={isSaved(idea.name, savedNames)}
@@ -253,6 +264,7 @@ function Ideas({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: readonl
                     })
                   }
                 />
+                </div>
               </li>
             ))}
           </ul>
@@ -401,6 +413,24 @@ function PrepPlanner({ onSave, savedNames }: { onSave: SaveRecipe; savedNames: r
         )}
       </div>
     </section>
+  );
+}
+
+/** The method, two lines until asked for more. */
+function Method({ text }: { text: string }) {
+  const [full, setFull] = useState(false);
+  const long = text.length > 110;
+  return (
+    <p className="mt-2 text-[14px] leading-relaxed">
+      <span className={full || !long ? undefined : "line-clamp-2"} style={{ display: full || !long ? undefined : "-webkit-box" }}>
+        {text}
+      </span>
+      {long && (
+        <button type="button" className="t-meta font-semibold underline" style={{ minHeight: 0 }} onClick={() => setFull(!full)} aria-expanded={full}>
+          {full ? "Less" : "More"}
+        </button>
+      )}
+    </p>
   );
 }
 

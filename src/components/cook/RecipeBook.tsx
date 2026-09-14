@@ -6,6 +6,11 @@ import { addRecipe, deleteRecipe, type NewRecipe } from "@/lib/planner-data";
 import { postAi } from "@/lib/ai/client";
 import { ImportedRecipe } from "@/lib/ai/schemas";
 import { ErrorNote } from "@/components/ErrorNote";
+import { Icon } from "@/components/ui/icons";
+import { Sheet } from "@/components/ui/Sheet";
+import { Segmented } from "@/components/ui/Segmented";
+import { EmptyState } from "@/components/ui/ListRow";
+import { useToast } from "@/components/ui/Toast";
 
 type Form = {
   name: string;
@@ -45,6 +50,9 @@ export function RecipeBook({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [mode, setMode] = useState<"type" | "paste">("type");
+  const toast = useToast();
 
   function set<K extends keyof Form>(key: K, value: Form[K]): void {
     setForm((f) => (f ? { ...f, [key]: value } : f));
@@ -97,7 +105,8 @@ export function RecipeBook({
     try {
       await addRecipe(householdId, userId, recipe);
       await onChanged();
-      setForm(null);
+      toast({ message: `Saved ${recipe.name.trim()}` });
+      closeAdd();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That recipe didn't save.");
     } finally {
@@ -110,184 +119,254 @@ export function RecipeBook({
     try {
       await deleteRecipe(id);
       setConfirmDelete(null);
+      setOpen(null);
       await onChanged();
+      toast({ message: "Recipe deleted" });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That didn't delete.");
     }
   }
 
+  const openRecipe = recipes.find((r) => r.id === open) ?? null;
+  const [query, setQuery] = useState("");
+  const shown = query.trim() ? recipes.filter((r) => r.name.toLowerCase().includes(query.trim().toLowerCase())) : recipes;
+
+  function closeAdd(): void {
+    setAddOpen(false);
+    setForm(null);
+    setPasted("");
+    setError(null);
+  }
+
+  const formBody = form && (
+    <form id="recipe-form" onSubmit={(e) => void save(e)} className="grid grid-cols-1 gap-3">
+      {form.source === "import" && <p className="t-meta">Check what was read before saving.</p>}
+      <label className="grid grid-cols-1 gap-1.5">
+        <span className="text-[13px] font-semibold text-muted">Name</span>
+        <input className="field" value={form.name} onChange={(e) => set("name", e.target.value)} />
+      </label>
+      <label className="grid grid-cols-1 gap-1.5">
+        <span className="text-[13px] font-semibold text-muted">Makes how many servings</span>
+        <input
+          className="field"
+          type="number"
+          inputMode="decimal"
+          min={0.5}
+          step={0.5}
+          value={form.servings}
+          onChange={(e) => set("servings", e.target.value)}
+        />
+      </label>
+      <label className="grid grid-cols-1 gap-1.5">
+        <span className="text-[13px] font-semibold text-muted">Ingredients, one per line</span>
+        <textarea
+          className="field"
+          rows={5}
+          placeholder={"2 lb chicken thighs\n1 onion, diced"}
+          value={form.ingredients}
+          onChange={(e) => set("ingredients", e.target.value)}
+        />
+      </label>
+      <label className="grid grid-cols-1 gap-1.5">
+        <span className="text-[13px] font-semibold text-muted">Method</span>
+        <textarea className="field" rows={4} value={form.method} onChange={(e) => set("method", e.target.value)} />
+      </label>
+      <fieldset className="m-0 border-0 p-0">
+        <legend className="mb-1.5 text-[13px] font-semibold text-muted">Per serving (optional)</legend>
+        <div className="grid grid-cols-4 gap-2">
+          {(
+            [
+              ["kcal", "kcal"],
+              ["protein", "P (g)"],
+              ["carbs", "C (g)"],
+              ["fat", "F (g)"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="grid grid-cols-1 gap-1">
+              <span className="text-[11px] font-semibold text-muted">{label}</span>
+              <input
+                className="field px-2"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                value={form[key]}
+                onChange={(e) => set(key, e.target.value)}
+              />
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </form>
+  );
+
   return (
     <>
-      {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
+      <div className="mt-4 flex items-center justify-between gap-2 px-1">
+        <h2 id="recipes-heading" className="t-label">
+          {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
+        </h2>
+        <button type="button" className="btn btn-primary" style={{ minHeight: 40, paddingInline: 16 }} onClick={() => setAddOpen(true)}>
+          <Icon name="plus" size={18} strokeWidth={2.2} />
+          Add recipe
+        </button>
+      </div>
 
-      {form ? (
-        <form onSubmit={(e) => void save(e)} className="card mt-4 grid grid-cols-1 gap-3 p-5" aria-labelledby="recipe-form-heading">
-          <h2 id="recipe-form-heading" className="font-display text-lg font-semibold">
-            {form.source === "import" ? "Check the imported recipe" : "Add a recipe"}
-          </h2>
-          <label className="grid grid-cols-1 gap-1.5">
-            <span className="text-[13px] font-semibold text-muted">Name</span>
-            <input className="field" value={form.name} onChange={(e) => set("name", e.target.value)} />
-          </label>
-          <label className="grid grid-cols-1 gap-1.5">
-            <span className="text-[13px] font-semibold text-muted">Makes how many servings</span>
-            <input
-              className="field"
-              type="number"
-              inputMode="decimal"
-              min={0.5}
-              step={0.5}
-              value={form.servings}
-              onChange={(e) => set("servings", e.target.value)}
-            />
-          </label>
-          <label className="grid grid-cols-1 gap-1.5">
-            <span className="text-[13px] font-semibold text-muted">Ingredients, one per line</span>
-            <textarea
-              className="field"
-              rows={5}
-              placeholder={"2 lb chicken thighs\n1 onion, diced"}
-              value={form.ingredients}
-              onChange={(e) => set("ingredients", e.target.value)}
-            />
-          </label>
-          <label className="grid grid-cols-1 gap-1.5">
-            <span className="text-[13px] font-semibold text-muted">Method</span>
-            <textarea className="field" rows={4} value={form.method} onChange={(e) => set("method", e.target.value)} />
-          </label>
-          <fieldset className="m-0 border-0 p-0">
-            <legend className="mb-1.5 text-[13px] font-semibold text-muted">Per serving (optional)</legend>
-            <div className="grid grid-cols-4 gap-2">
-              {(
-                [
-                  ["kcal", "kcal"],
-                  ["protein", "P (g)"],
-                  ["carbs", "C (g)"],
-                  ["fat", "F (g)"],
-                ] as const
-              ).map(([key, label]) => (
-                <label key={key} className="grid grid-cols-1 gap-1">
-                  <span className="text-[11px] font-semibold text-muted">{label}</span>
-                  <input
-                    className="field px-2"
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={form[key]}
-                    onChange={(e) => set(key, e.target.value)}
-                  />
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <div className="flex gap-2">
-            <button type="button" className="btn btn-quiet" onClick={() => setForm(null)} disabled={saving}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary flex-1" disabled={saving}>
-              {saving ? "Saving…" : "Save recipe"}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <section className="card mt-4 p-5" aria-labelledby="add-recipe-heading">
-          <h2 id="add-recipe-heading" className="font-display text-lg font-semibold">
-            Add a recipe
-          </h2>
-          <button type="button" className="btn btn-primary mt-3 w-full" onClick={() => setForm({ ...EMPTY })}>
-            Type one in
-          </button>
-          <label htmlFor="paste-recipe" className="mt-4 block text-[13px] font-semibold text-muted">
-            Or paste a recipe to import
-          </label>
-          <textarea
-            id="paste-recipe"
-            className="field mt-1.5"
-            rows={4}
-            placeholder="Paste the title, ingredients and steps from anywhere."
-            value={pasted}
-            onChange={(e) => setPasted(e.target.value)}
-            disabled={importing}
-          />
-          <button
-            type="button"
-            className="btn btn-quiet mt-2 w-full"
-            onClick={() => void importText()}
-            disabled={importing || pasted.trim().length < 20}
-          >
-            {importing ? "Reading recipe…" : "Import"}
-          </button>
-          <p className="mt-2 text-[13px] text-muted">Imported recipes open in a form so you can check them before saving.</p>
-        </section>
+      {error && !addOpen && <ErrorNote message={error} onDismiss={() => setError(null)} />}
+
+      {recipes.length > 8 && (
+        <label className="mt-3 block">
+          <span className="sr-only">Search recipes</span>
+          <input className="field" type="search" placeholder="Search recipes" value={query} onChange={(e) => setQuery(e.target.value)} />
+        </label>
       )}
 
-      <section className="card mt-4 p-5" aria-labelledby="recipes-heading">
-        <h2 id="recipes-heading" className="font-display text-lg font-semibold">
-          Recipes <span className="font-sans text-[14px] font-semibold text-muted">{recipes.length}</span>
-        </h2>
-        {recipes.length === 0 ? (
-          <p className="mt-2 text-[14px] text-muted">
-            None yet. Add one above, or tap &ldquo;Save recipe&rdquo; on an idea in the Ideas tab.
-          </p>
+      {recipes.length === 0 ? (
+        <div className="card mt-3">
+          <EmptyState
+            icon="book"
+            text={<>No recipes yet. Add one, or tap &ldquo;Save recipe&rdquo; on an idea.</>}
+            action={
+              <button type="button" className="btn btn-primary" onClick={() => setAddOpen(true)}>
+                Add a recipe
+              </button>
+            }
+          />
+        </div>
+      ) : (
+        <ul className="list mt-3" aria-labelledby="recipes-heading">
+          {shown.map((r) => (
+            <li key={r.id}>
+              <button type="button" className="list-row" onClick={() => setOpen(r.id)}>
+                <span className="list-row-lead" aria-hidden="true">
+                  <Icon name="book" size={18} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px]">{r.name}</span>
+                  <span className="t-meta block truncate">
+                    Makes {Number(r.servings)}
+                    {r.kcal !== null ? ` · ${Math.round(Number(r.kcal))} kcal each` : ""}
+                  </span>
+                </span>
+                <Icon name="chevron-right" size={18} className="shrink-0 text-muted" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Sheet
+        open={addOpen}
+        onClose={closeAdd}
+        title={form ? (form.source === "import" ? "Check the recipe" : "New recipe") : "Add a recipe"}
+        footer={
+          form ? (
+            <button type="submit" form="recipe-form" className="btn btn-primary w-full" disabled={saving}>
+              {saving ? "Saving…" : "Save recipe"}
+            </button>
+          ) : undefined
+        }
+      >
+        {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
+        {form ? (
+          formBody
         ) : (
-          <ul className="mt-3 grid grid-cols-1 gap-2">
-            {recipes.map((r) => (
-              <li key={r.id} className="rounded-field" style={{ border: "1px solid var(--line)" }}>
+          <div className="grid grid-cols-1 gap-3">
+            <Segmented
+              label="How to add"
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: "type", label: "Type it" },
+                { value: "paste", label: "Paste to import" },
+              ]}
+            />
+            {mode === "type" ? (
+              <button type="button" className="btn btn-primary w-full" onClick={() => setForm({ ...EMPTY })}>
+                Start a blank recipe
+              </button>
+            ) : (
+              <>
+                <label htmlFor="paste-recipe" className="t-meta">
+                  Paste the title, ingredients and steps from anywhere. You&rsquo;ll check it before saving.
+                </label>
+                <textarea
+                  id="paste-recipe"
+                  className="field"
+                  rows={7}
+                  value={pasted}
+                  onChange={(e) => setPasted(e.target.value)}
+                  disabled={importing}
+                />
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
-                  aria-expanded={open === r.id}
-                  onClick={() => setOpen(open === r.id ? null : r.id)}
+                  className="btn btn-primary w-full"
+                  onClick={() => void importText()}
+                  disabled={importing || pasted.trim().length < 20}
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-semibold">{r.name}</span>
-                    <span className="block text-[13px] text-muted">
-                      Makes {Number(r.servings)}
-                      {r.kcal !== null ? ` · ${Math.round(Number(r.kcal))} kcal each` : ""}
-                    </span>
-                  </span>
-                  <span aria-hidden="true" className="text-muted">
-                    {open === r.id ? "−" : "+"}
-                  </span>
+                  <Icon name="sparkle" size={18} />
+                  {importing ? "Reading recipe…" : "Import"}
                 </button>
-                {open === r.id && (
-                  <div className="px-3 pb-3 text-[14px]">
-                    {r.ingredients.length > 0 && (
-                      <ul className="list-disc pl-5">
-                        {r.ingredients.map((line, i) => (
-                          <li key={i}>{line}</li>
-                        ))}
-                      </ul>
-                    )}
-                    {r.method && <p className="mt-2 whitespace-pre-line text-muted">{r.method}</p>}
-                    <div className="mt-3">
-                      {confirmDelete === r.id ? (
-                        <div className="flex gap-2">
-                          <button type="button" className="btn btn-quiet flex-1" onClick={() => setConfirmDelete(null)}>
-                            Keep
-                          </button>
-                          <button
-                            type="button"
-                            className="btn flex-1"
-                            style={{ background: "var(--tomato)", color: "var(--on-pine)" }}
-                            onClick={() => void remove(r.id)}
-                          >
-                            Delete, and its planned meals
-                          </button>
-                        </div>
-                      ) : (
-                        <button type="button" className="btn btn-quiet" onClick={() => setConfirmDelete(r.id)}>
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+              </>
+            )}
+          </div>
         )}
-      </section>
+      </Sheet>
+
+      <Sheet
+        open={openRecipe !== null}
+        onClose={() => {
+          setOpen(null);
+          setConfirmDelete(null);
+        }}
+        title={openRecipe?.name ?? ""}
+      >
+        {openRecipe && (
+          <div className="grid grid-cols-1 gap-4 text-[15px]">
+            <p className="t-meta">
+              Makes {Number(openRecipe.servings)}
+              {openRecipe.kcal !== null
+                ? ` · ${Math.round(Number(openRecipe.kcal))} kcal, ${Math.round(Number(openRecipe.protein_g ?? 0))}p ${Math.round(Number(openRecipe.carb_g ?? 0))}c ${Math.round(Number(openRecipe.fat_g ?? 0))}f each`
+                : ""}
+            </p>
+            {openRecipe.ingredients.length > 0 && (
+              <div>
+                <h3 className="t-label">Ingredients</h3>
+                <ul className="mt-1.5 list-disc pl-5 leading-relaxed">
+                  {openRecipe.ingredients.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {openRecipe.method && (
+              <div>
+                <h3 className="t-label">Method</h3>
+                <p className="mt-1.5 whitespace-pre-line leading-relaxed">{openRecipe.method}</p>
+              </div>
+            )}
+            {confirmDelete === openRecipe.id ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" className="btn btn-quiet" onClick={() => setConfirmDelete(null)}>
+                  Keep
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ background: "var(--tomato)", color: "var(--on-pine)" }}
+                  onClick={() => void remove(openRecipe.id)}
+                >
+                  Delete + its plans
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="btn btn-quiet w-full" style={{ color: "var(--tomato)" }} onClick={() => setConfirmDelete(openRecipe.id)}>
+                <Icon name="trash" size={18} />
+                Delete recipe
+              </button>
+            )}
+          </div>
+        )}
+      </Sheet>
     </>
   );
 }
