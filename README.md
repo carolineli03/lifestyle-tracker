@@ -166,7 +166,7 @@ Email sign-in at `/login` still works.
 ## Sharing a kitchen
 
 The first person to open the app picks **Start a kitchen** and gets a six-character
-join code (shown on the Fridge tab). The second person opens the app on their phone, picks **Join
+join code (shown in Settings). The second person opens the app on their phone, picks **Join
 with a code**, and enters it. From then on both accounts read and write the same
 `pantry_items` and `foods` rows.
 
@@ -201,7 +201,7 @@ Two details worth knowing six months from now:
 
 ## What's in the kitchen, and what isn't
 
-The Fridge tab holds two lists that deliberately live in separate tables.
+The Kitchen tab holds two lists that deliberately live in separate tables.
 
 **`pantry_items`** is what you own. Every row has a location and, optionally, a
 use-by date. The inventory is grouped by location with the soonest-expiring
@@ -557,9 +557,34 @@ compared against another number. Radii: 14px cards, 10px inputs and buttons,
 full pill on chips. `prefers-reduced-motion` is respected, keyboard focus is
 always visible, and controls are at least 44px tall.
 
-Theme follows the system setting; the manual override on the Fridge tab writes
+Theme follows the system setting; the manual override in Settings writes
 `lifestyle-tracker-theme` to `localStorage` and is applied before first paint by a small
 inline script, so there is no flash of the wrong theme.
+
+## Layout and interaction
+
+Each tab opens on read-only status; inputs live in bottom sheets opened by one
+clear button. The rules the screens follow:
+
+- **Glance, then act.** Today leads with a calorie ring (calories left is the one
+  loud number), then water / movement / weight tiles, then four meal cards.
+  Kitchen, Cook and Progress open on lists and summaries, not forms.
+- **One primary action per screen.** The raised **+** in the bottom bar logs food
+  from any tab (`/today?log=1` opens the log sheet). Each meal card's **+** opens
+  the same sheet with that meal chosen.
+- **Daily vs. setup.** Targets, the calculator, the kitchen join code, account,
+  theme, AI usage and export live in **Settings** (the gear on every tab), not on
+  the daily screens.
+- **Progressive disclosure.** Rows open detail sheets (an entry, a pantry item, a
+  planned meal, a recipe, a measurement) instead of showing every control inline.
+- **Quiet feedback.** Toasts confirm saves, with **Undo** where it's safe (water);
+  errors stay inline next to what failed.
+
+Shared primitives in `src/components/ui/`: `Sheet` (native `<dialog>` with
+`showModal()`, so focus trap, Esc and inert background come from the browser),
+`Segmented`, `Ring`, `ListRow` / `EmptyState`, `Toast`, and an inline SVG icon
+set. Existing section cards reused inside a sheet sit in a `.in-sheet` wrapper,
+which drops their card frame and heading.
 
 ---
 

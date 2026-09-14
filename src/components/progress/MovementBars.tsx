@@ -26,9 +26,9 @@ export function MovementBars({ days, weeklyGoal }: { days: readonly DayMinutes[]
     days.map((d) => `${weekday(d.date, "long")} ${d.minutes}`).join(", ");
 
   return (
-    <section className="card mt-4 p-5">
+    <section className="card mt-3 p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-lg font-semibold">Movement</h2>
+        <h2 className="t-section">Movement</h2>
         <p className="text-[13px] text-muted">
           Last 7 days · <span className="font-semibold text-ink">{total}</span>
           {weeklyGoal ? ` / ${weeklyGoal} min` : " min"}
@@ -79,7 +79,7 @@ export function MovementBars({ days, weeklyGoal }: { days: readonly DayMinutes[]
       <p className="mt-2 text-[12px] text-muted">
         {weeklyGoal
           ? `Dashed line: ${Math.round(weeklyGoal / 7)} min a day keeps pace with your weekly goal.`
-          : "Set a weekly movement goal below to see a pace line."}
+          : "Set a weekly movement goal in Targets to see a pace line."}
       </p>
     </section>
   );

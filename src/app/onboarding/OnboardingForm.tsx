@@ -37,13 +37,12 @@ export function OnboardingForm() {
 
   return (
     <form onSubmit={submit} className="card mt-8 p-5">
-      <div role="radiogroup" aria-label="Setup choice" className="flex gap-2">
+      <div role="radiogroup" aria-label="Setup choice" className="segmented">
         <button
           type="button"
           role="radio"
           aria-checked={mode === "create"}
           data-active={mode === "create"}
-          className="chip"
           onClick={() => setMode("create")}
         >
           Start a kitchen
@@ -53,7 +52,6 @@ export function OnboardingForm() {
           role="radio"
           aria-checked={mode === "join"}
           data-active={mode === "join"}
-          className="chip"
           onClick={() => setMode("join")}
         >
           Join with a code
@@ -74,7 +72,7 @@ export function OnboardingForm() {
             onChange={(e) => setName(e.target.value)}
           />
           <p className="mt-2 text-[13px] text-muted">
-            You&rsquo;ll get a six-character code to pass to whoever shares the fridge.
+            You&rsquo;ll get a six-character code to pass to whoever shares the kitchen.
           </p>
         </div>
       ) : (
@@ -96,7 +94,7 @@ export function OnboardingForm() {
             placeholder="ABC234"
           />
           <p className="mt-2 text-[13px] text-muted">
-            Ask the person who set up the kitchen — it&rsquo;s on their Fridge tab.
+            Ask the person who set up the kitchen — it&rsquo;s in their Settings.
           </p>
         </div>
       )}

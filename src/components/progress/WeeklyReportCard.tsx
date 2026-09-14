@@ -41,9 +41,9 @@ export function WeeklyReportCard({
   }, [today, kcalTarget, proteinTarget]);
 
   return (
-    <section className="card mt-4 p-5" aria-labelledby="report-heading">
+    <section className="card mt-3 p-4" aria-labelledby="report-heading">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id="report-heading" className="font-display text-lg font-semibold">
+        <h2 id="report-heading" className="t-section">
           This week
         </h2>
         {report && (
@@ -61,7 +61,7 @@ export function WeeklyReportCard({
       {!report && !error && <p className="mt-2 text-[14px] text-muted">Loading…</p>}
 
       {report && streaks && (
-        <dl className="mt-3 grid grid-cols-2 gap-2">
+        <dl className="mt-3 grid grid-cols-3 gap-2">
           <Tile label="Streak" value={`${streaks.current} ${streaks.current === 1 ? "day" : "days"}`} sub={`Best ${streaks.best}`} />
           <Tile label="Days logged" value={`${report.daysLogged} of 7`} sub={kcalTarget ? `${report.daysOnTarget} on target` : undefined} />
           <Tile
@@ -75,11 +75,6 @@ export function WeeklyReportCard({
             sub={proteinTarget ? `target ${proteinTarget} g` : undefined}
           />
           <Tile
-            label="Weight"
-            value={report.weightChange === null ? "—" : `${report.weightChange > 0 ? "+" : report.weightChange < 0 ? "−" : ""}${Math.abs(report.weightChange)} lb`}
-            sub={report.weightChange === null ? "needs 2 weigh-ins" : undefined}
-          />
-          <Tile
             label="Movement"
             value={`${report.movementMinutes} min`}
             sub={report.movementKcal ? `~${report.movementKcal.toLocaleString()} kcal` : undefined}
@@ -91,17 +86,17 @@ export function WeeklyReportCard({
           />
         </dl>
       )}
-      <p className="mt-2 text-[12px] text-muted">Averages count only days you logged; an unlogged day isn&rsquo;t a zero.</p>
+      <p className="t-meta mt-2">Averages count only days you logged; an unlogged day isn&rsquo;t a zero.</p>
     </section>
   );
 }
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-field px-3 py-2.5" style={{ background: "var(--pine-wash)" }}>
-      <dt className="text-[12px] font-semibold text-muted">{label}</dt>
-      <dd className="m-0 font-display text-[20px] font-bold leading-tight">{value}</dd>
-      {sub && <dd className="m-0 text-[12px] text-muted">{sub}</dd>}
+    <div className="min-w-0 rounded-field px-2.5 py-2" style={{ background: "var(--pine-wash)" }}>
+      <dt className="truncate text-[11px] font-semibold text-muted">{label}</dt>
+      <dd className="m-0 font-display text-[17px] font-bold leading-tight">{value}</dd>
+      {sub && <dd className="m-0 truncate text-[11px] text-muted">{sub}</dd>}
     </div>
   );
 }

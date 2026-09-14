@@ -109,7 +109,7 @@ export function WeightChart({ points, pace }: { points: readonly WeightPoint[]; 
         {pace ? (
           <Legend color="var(--marigold)" label="Goal pace" dashed />
         ) : (
-          <span>Set a start and goal below to see the pace line.</span>
+          <span>Set a start and goal in Targets to see the pace line.</span>
         )}
       </figcaption>
     </figure>

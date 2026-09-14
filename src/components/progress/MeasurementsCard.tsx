@@ -5,13 +5,26 @@ import type { BodyMeasurement } from "@/lib/supabase/database.types";
 import { fromIsoDate, type IsoDate } from "@/lib/date";
 import { deleteMeasurement, fetchMeasurements, saveMeasurement } from "@/lib/progress";
 import { ErrorNote } from "@/components/ErrorNote";
+import { Icon } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/ListRow";
+import { Sheet } from "@/components/ui/Sheet";
+import { useToast } from "@/components/ui/Toast";
 
 const KINDS = ["waist", "hips", "chest", "neck", "arm", "thigh"] as const;
 
 const title = (kind: string) => kind.charAt(0).toUpperCase() + kind.slice(1);
+const short = (iso: IsoDate) => fromIsoDate(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 
+function signed(n: number): string {
+  return `${n > 0 ? "+" : n < 0 ? "−" : "±"}${Math.abs(n)}`;
+}
+
+/** One row per body part: latest, change and trend. Adding and history open sheets. */
 export function MeasurementsCard({ userId, today }: { userId: string; today: IsoDate }) {
+  const toast = useToast();
   const [rows, setRows] = useState<BodyMeasurement[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [openKind, setOpenKind] = useState<string | null>(null);
   const [kind, setKind] = useState<string>("waist");
   const [custom, setCustom] = useState("");
   const [date, setDate] = useState<IsoDate>(today);
@@ -25,6 +38,16 @@ export function MeasurementsCard({ userId, today }: { userId: string; today: Iso
     load().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Could not load measurements."));
   }, [load]);
 
+  function startAdding(preset?: string): void {
+    setKind(preset && (KINDS as readonly string[]).includes(preset) ? preset : preset ? "custom" : "waist");
+    setCustom(preset && !(KINDS as readonly string[]).includes(preset) ? preset : "");
+    setDate(today);
+    setValue("");
+    setError(null);
+    setOpenKind(null);
+    setAdding(true);
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const name = kind === "custom" ? custom.trim() : kind;
@@ -35,8 +58,9 @@ export function MeasurementsCard({ userId, today }: { userId: string; today: Iso
     setError(null);
     try {
       await saveMeasurement(userId, date, name, inches);
-      setValue("");
       await load();
+      setAdding(false);
+      toast({ message: `${title(name)} saved · ${inches} in` });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That didn't save.");
     } finally {
@@ -44,88 +68,138 @@ export function MeasurementsCard({ userId, today }: { userId: string; today: Iso
     }
   }
 
+  async function remove(row: BodyMeasurement): Promise<void> {
+    setBusy(true);
+    try {
+      await deleteMeasurement(row.id);
+      await load();
+      if ((byKind.get(row.kind)?.length ?? 0) <= 1) setOpenKind(null);
+      toast({ message: `Deleted ${title(row.kind).toLowerCase()} from ${short(row.measured_on)}` });
+    } catch (cause) {
+      toast({ message: cause instanceof Error ? cause.message : "That didn't delete." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const byKind = new Map<string, BodyMeasurement[]>();
   for (const r of rows ?? []) byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), r]);
+  const history = openKind ? (byKind.get(openKind) ?? []) : [];
 
   return (
-    <section className="card mt-4 p-5" aria-labelledby="measure-heading">
-      <h2 id="measure-heading" className="font-display text-lg font-semibold">
-        Measurements
-      </h2>
+    <section className="mt-3" aria-labelledby="measure-heading">
+      <div className="mb-2 mt-5 flex items-center justify-between gap-2 px-1">
+        <h2 id="measure-heading" className="t-label">
+          Measurements
+        </h2>
+        <button type="button" className="btn btn-quiet" style={{ minHeight: 40, paddingInline: 14 }} onClick={() => startAdding()}>
+          <Icon name="plus" size={17} strokeWidth={2.2} />
+          Add
+        </button>
+      </div>
 
-      <form onSubmit={(e) => void submit(e)} className="mt-3 grid grid-cols-1 gap-2">
-        <div className="grid grid-cols-2 gap-2">
-          <label className="grid grid-cols-1 gap-1">
-            <span className="text-[12px] font-semibold text-muted">What</span>
-            <select className="field" value={kind} onChange={(e) => setKind(e.target.value)}>
-              {KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {title(k)}
-                </option>
-              ))}
-              <option value="custom">Other…</option>
-            </select>
-          </label>
-          <label className="grid grid-cols-1 gap-1">
-            <span className="text-[12px] font-semibold text-muted">Inches</span>
-            <input className="field" type="number" inputMode="decimal" step={0.25} min={1} value={value} onChange={(e) => setValue(e.target.value)} />
-          </label>
+      {error && !adding && <ErrorNote message={error} onDismiss={() => setError(null)} />}
+
+      {rows === null ? (
+        <p className="t-meta px-1">Loading…</p>
+      ) : byKind.size === 0 ? (
+        <div className="card">
+          <EmptyState icon="ruler" text="No measurements yet. Same spot, same time of day works best." />
         </div>
-        {kind === "custom" && (
-          <input className="field" aria-label="Measurement name" placeholder="e.g. calf" value={custom} onChange={(e) => setCustom(e.target.value)} />
-        )}
-        <div className="flex gap-2">
-          <input className="field flex-1" type="date" aria-label="Date measured" value={date} max={today} onChange={(e) => setDate(e.target.value)} />
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </form>
-      {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
-
-      {rows && rows.length === 0 && <p className="mt-3 text-[14px] text-muted">No measurements yet. Same spot, same time of day works best.</p>}
-
-      {byKind.size > 0 && (
-        <ul className="mt-4 grid grid-cols-1 gap-3">
+      ) : (
+        <ul className="list">
           {[...byKind.entries()].map(([k, list]) => {
             const first = list[0]!;
             const last = list.at(-1)!;
             const change = Math.round((Number(last.value_in) - Number(first.value_in)) * 100) / 100;
             return (
-              <li key={k} className="rounded-field p-3" style={{ border: "1px solid var(--line)" }}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[15px] font-semibold">{title(k)}</span>
-                  <span className="text-[14px]">
-                    <span className="font-display text-[18px] font-bold">{Number(last.value_in)}</span> in
-                    {list.length > 1 && (
-                      <span className="ml-2 text-[13px] text-muted">
-                        {change > 0 ? "+" : change < 0 ? "−" : "±"}
-                        {Math.abs(change)} since {fromIsoDate(first.measured_on).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
-                      </span>
+              <li key={k}>
+                <button type="button" className="list-row" onClick={() => setOpenKind(k)}>
+                  <span className="w-[72px] shrink-0 text-[15px] font-semibold">{title(k)}</span>
+                  <span className="min-w-0 flex-1">
+                    {list.length > 1 ? (
+                      <Sparkline values={list.map((r) => Number(r.value_in))} label={`${title(k)} trend`} />
+                    ) : (
+                      <span className="t-meta">{short(last.measured_on)}</span>
                     )}
                   </span>
-                </div>
-                {list.length > 1 && <Sparkline values={list.map((r) => Number(r.value_in))} label={`${title(k)} trend`} />}
-                <button
-                  type="button"
-                  className="mt-1 text-[12px] text-muted underline"
-                  style={{ minHeight: 32 }}
-                  onClick={() => void deleteMeasurement(last.id).then(load).catch((c: unknown) => setError(c instanceof Error ? c.message : "That didn't delete."))}
-                >
-                  Delete latest ({fromIsoDate(last.measured_on).toLocaleDateString(undefined, { day: "numeric", month: "short" })})
+                  <span className="shrink-0 text-right leading-tight">
+                    <span className="block text-[15px]">
+                      <span className="font-display text-[18px] font-bold">{Number(last.value_in)}</span> in
+                    </span>
+                    {list.length > 1 && <span className="t-meta block">{signed(change)}</span>}
+                  </span>
                 </button>
               </li>
             );
           })}
         </ul>
       )}
+
+      <Sheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        title="Add a measurement"
+        footer={
+          <button type="submit" form="measure-form" className="btn btn-primary w-full" disabled={busy}>
+            {busy ? "Saving…" : "Save"}
+          </button>
+        }
+      >
+        <form id="measure-form" onSubmit={(e) => void submit(e)} className="grid grid-cols-1 gap-3">
+          <div role="radiogroup" aria-label="What" className="flex flex-wrap gap-1.5">
+            {[...KINDS, "custom"].map((k) => (
+              <button key={k} type="button" role="radio" aria-checked={kind === k} data-active={kind === k} className="chip" onClick={() => setKind(k)}>
+                {k === "custom" ? "Other…" : title(k)}
+              </button>
+            ))}
+          </div>
+          {kind === "custom" && (
+            <input className="field" aria-label="Measurement name" placeholder="e.g. calf" value={custom} onChange={(e) => setCustom(e.target.value)} />
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="grid grid-cols-1 gap-1">
+              <span className="t-meta font-semibold">Inches</span>
+              <input className="field" type="number" inputMode="decimal" step={0.25} min={1} value={value} onChange={(e) => setValue(e.target.value)} />
+            </label>
+            <label className="grid grid-cols-1 gap-1">
+              <span className="t-meta font-semibold">Date</span>
+              <input className="field" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} />
+            </label>
+          </div>
+          {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
+        </form>
+      </Sheet>
+
+      <Sheet open={openKind !== null} onClose={() => setOpenKind(null)} title={openKind ? title(openKind) : ""}>
+        {openKind && (
+          <>
+            {history.length > 1 && <Sparkline values={history.map((r) => Number(r.value_in))} label={`${title(openKind)} trend`} height={56} />}
+            <ul className="list mt-3">
+              {[...history].reverse().map((r) => (
+                <li key={r.id} className="list-row">
+                  <span className="min-w-0 flex-1 text-[15px]">{fromIsoDate(r.measured_on).toLocaleDateString(undefined, { dateStyle: "medium" })}</span>
+                  <span className="text-[15px] font-semibold">{Number(r.value_in)} in</span>
+                  <button type="button" className="icon-btn text-muted" disabled={busy} onClick={() => void remove(r)} aria-label={`Delete ${short(r.measured_on)}`}>
+                    <Icon name="trash" size={18} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button type="button" className="btn btn-primary mt-4 w-full" onClick={() => startAdding(openKind)}>
+              <Icon name="plus" size={18} strokeWidth={2.2} />
+              Add {title(openKind).toLowerCase()}
+            </button>
+          </>
+        )}
+      </Sheet>
     </section>
   );
 }
 
-function Sparkline({ values, label }: { values: readonly number[]; label: string }) {
+function Sparkline({ values, label, height = 28 }: { values: readonly number[]; label: string; height?: number }) {
   const W = 300;
-  const H = 40;
+  const H = height;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
@@ -133,8 +207,8 @@ function Sparkline({ values, label }: { values: readonly number[]; label: string
     .map((v, i) => `${((i / (values.length - 1)) * (W - 8) + 4).toFixed(1)},${(H - 4 - ((v - min) / span) * (H - 8)).toFixed(1)}`)
     .join(" ");
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={`${label}: from ${values[0]} to ${values.at(-1)} inches`} className="mt-2 block">
-      <polyline points={points} fill="none" stroke="var(--pine)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" role="img" aria-label={`${label}: from ${values[0]} to ${values.at(-1)} inches`} className="block">
+      <polyline points={points} fill="none" stroke="var(--pine)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

@@ -34,7 +34,7 @@ export function AccountCard({ isGuest, email }: { isGuest: boolean; email: strin
     setState("sending");
     setError(null);
     const redirect = new URL("/auth/callback", siteUrl());
-    redirect.searchParams.set("next", "/fridge");
+    redirect.searchParams.set("next", "/settings");
     const { error: updateError } = await supabaseBrowser().auth.updateUser(
       { email: value.trim() },
       { emailRedirectTo: redirect.toString() },

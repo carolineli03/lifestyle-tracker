@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Icon } from "./icons";
 
 /**
@@ -26,6 +26,13 @@ export function Sheet({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(null);
+  const titleId = useId();
+
+  // Unlock scrolling now rather than when the async "close" event lands.
+  function dismiss(): void {
+    document.documentElement.style.overflow = "";
+    ref.current?.close();
+  }
 
   useEffect(() => {
     const dialog = ref.current;
@@ -35,6 +42,7 @@ export function Sheet({
       dialog.showModal();
       document.documentElement.style.overflow = "hidden";
     } else if (!open && dialog.open) {
+      document.documentElement.style.overflow = "";
       dialog.close();
     }
   }, [open]);
@@ -59,21 +67,28 @@ export function Sheet({
     <dialog
       ref={ref}
       className="sheet"
-      aria-labelledby="sheet-title"
+      aria-labelledby={titleId}
       // Tapping the dimmed backdrop (the dialog element itself, outside the panel) closes.
       onClick={(e) => {
-        if (e.target === ref.current) ref.current?.close();
+        if (e.target === ref.current) dismiss();
+      }}
+      // Chrome can swallow a native Esc (no recent user activation), so close explicitly.
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          dismiss();
+        }
       }}
     >
       {open && (
         <div className="sheet-panel">
           <div className="sheet-handle" aria-hidden="true" />
           <header className="sheet-header">
-            <h2 id="sheet-title" className="t-section min-w-0 flex-1 truncate">
+            <h2 id={titleId} className="t-section min-w-0 flex-1 truncate">
               {title}
             </h2>
             {headerExtra}
-            <button type="button" className="icon-btn" onClick={() => ref.current?.close()} aria-label="Close">
+            <button type="button" className="icon-btn" onClick={dismiss} aria-label="Close">
               <Icon name="close" />
             </button>
           </header>

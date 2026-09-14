@@ -28,7 +28,7 @@ export async function loadKitchen(
 
   const items = pantry.data ?? [];
   if (items.length === 0) {
-    return fail(400, "bad_request", "The kitchen is empty. Add what you have on the Fridge tab first.");
+    return fail(400, "bad_request", "The kitchen is empty. Add what you have on the Kitchen tab first.");
   }
 
   return {
