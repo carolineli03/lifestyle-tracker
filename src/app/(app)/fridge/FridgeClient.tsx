@@ -5,6 +5,7 @@ import type { Household, PantryItem, StorageLocation } from "@/lib/supabase/data
 import * as api from "@/lib/fridge";
 import { LOCATION_LABEL, LOCATIONS, expiringSoon } from "@/lib/expiry";
 import { AddItemForm } from "@/components/fridge/AddItemForm";
+import { BulkAdd } from "@/components/fridge/BulkAdd";
 import { InventoryList, type LocationFilter } from "@/components/fridge/InventoryList";
 import { ShoppingList } from "@/components/fridge/ShoppingList";
 import { ExpiryBadge } from "@/components/fridge/ExpiryBadge";
@@ -132,6 +133,8 @@ export function FridgeClient({
       <AddItemForm
         onAdd={(item) => guard(() => api.addPantryItems(household.id, userId, [item]).then(() => undefined))}
       />
+
+      <BulkAdd onAdd={(items) => guard(() => api.addPantryItems(household.id, userId, items).then(() => undefined))} />
 
       <ShoppingList
         items={data?.shopping ?? []}

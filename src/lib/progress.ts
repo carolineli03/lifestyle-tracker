@@ -1,7 +1,7 @@
 "use client";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { Movement, Profile, WeighIn } from "@/lib/supabase/database.types";
+import type { AiUsage, Movement, Profile, WeighIn } from "@/lib/supabase/database.types";
 import type { IsoDate } from "@/lib/date";
 
 /**
@@ -32,6 +32,18 @@ export async function fetchMovementSince(from: IsoDate): Promise<Movement[]> {
     .gte("logged_on", from)
     .order("logged_on", { ascending: true });
   fail("Could not load movement", error);
+  return data ?? [];
+}
+
+export type UsageRow = Pick<AiUsage, "model" | "input_tokens" | "output_tokens" | "ok">;
+
+/** This person's AI calls since `from` (an instant: the start of their local month). */
+export async function fetchAiUsageSince(from: Date): Promise<UsageRow[]> {
+  const { data, error } = await supabaseBrowser()
+    .from("ai_usage")
+    .select("model, input_tokens, output_tokens, ok")
+    .gte("created_at", from.toISOString());
+  fail("Could not load AI usage", error);
   return data ?? [];
 }
 

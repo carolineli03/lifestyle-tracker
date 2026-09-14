@@ -11,6 +11,7 @@ import { StatRow } from "@/components/progress/StatRow";
 import { MovementBars } from "@/components/progress/MovementBars";
 import { TargetCalculator } from "@/components/progress/TargetCalculator";
 import { TargetOverrides } from "@/components/progress/TargetOverrides";
+import { AiUsageCard } from "@/components/progress/AiUsageCard";
 import { ErrorNote } from "@/components/ErrorNote";
 
 /**
@@ -95,6 +96,8 @@ export function ProgressClient({ userId, initialProfile }: { userId: string; ini
 
       {/* Re-seeded after any save so a calculator result shows up in the fields. */}
       <TargetOverrides key={profile?.updated_at ?? "none"} profile={profile} onSave={save} />
+
+      <AiUsageCard />
     </>
   );
 }
