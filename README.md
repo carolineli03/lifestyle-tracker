@@ -282,6 +282,74 @@ run is not a passing run — check the output before trusting it.
 
 ---
 
+## Logging food
+
+Today → **Log food** has a meal picker, which defaults from the clock (breakfast until
+10:30, lunch until 15:00, dinner until 21:00, then snacks), and five ways in:
+
+| Tab | What it does | Needs |
+|---|---|---|
+| **Search** | Your own foods first, then **the food database**: USDA FoodData Central + Open Food Facts, per serving | Nothing (`USDA_API_KEY` recommended) |
+| **Scan** | Camera barcode scan → your foods, then Open Food Facts, then USDA branded. Typed-number fallback | Nothing |
+| **Photo** | Nutrition label read exactly, or the plate estimated | Anthropic key |
+| **Describe** | Type or 🎙 say what you ate → itemised estimate | Anthropic key |
+| **Quick add** | Calories (+ optional macros), no food name | Nothing |
+
+Everything except Quick add lands as editable draft rows with a **Servings** control
+and optional **fiber / sugar / sodium**. A blank nutrient means unknown and is never
+summed as zero. When a food is new, the library saves it per serving, together with
+its serving label and barcode.
+
+The day's log is grouped into **Breakfast / Lunch / Dinner / Snacks**, each with a
+subtotal. **Copy from…** on a meal re-logs any earlier day's meal. Entries from
+before meals existed show under "Other".
+
+**Food database.** The routes are `GET /api/foods/search?q=` and
+`GET /api/foods/barcode?code=`. They're server-side, because Open Food Facts wants an
+identifying User-Agent and the USDA key shouldn't reach the browser. No Claude is
+involved, so they don't count toward the AI caps. Get a free USDA key at
+<https://fdc.nal.usda.gov/api-key-signup> and set `USDA_API_KEY` (Vercel too).
+Without it the shared `DEMO_KEY` is used, which is rate-limited. Normalising
+(per serving, or plainly per 100 g when there's no serving size; sodium g→mg) lives
+in `src/lib/fooddb.ts`, tested against trimmed real responses in `tests/fixtures/`.
+
+**Barcode scanning** uses the browser's own `BarcodeDetector` where it exists
+(Android Chrome) and the `barcode-detector` WebAssembly ponyfill elsewhere (iPhone).
+The `.wasm` is copied into `public/zxing/` by `scripts/copy-zxing-wasm.mjs` before
+every dev/build, so it's served from this app, not a CDN.
+
+**Voice** uses the browser's speech recognition (on Chrome, audio goes to Google's
+speech service). Where it isn't supported, the mic button becomes a hint to use the
+keyboard's dictation.
+
+## Tracking beyond food
+
+- **Water:** +8 / +16 / custom oz with undo, against `water_goal_oz` (default 64).
+  Private.
+- **Exercise calories:** each movement entry stores an estimate, MET × latest
+  weight × time (`src/lib/exercise.ts`). If **Add exercise calories to my daily
+  target** is on (Progress → Targets & goals; off by default), Today's target
+  includes them.
+- **Fiber / sugar / sodium goals:** set on Progress. Today shows them once any is
+  set, and says when some foods had no figure.
+- **Streak:** consecutive days with food logged. It isn't broken until the day is
+  over.
+
+## Progress extras
+
+- **This week:** a report with streak, days logged and on target (−10% / +5%),
+  average calories and protein over logged days only, weight change, movement and
+  water (`src/lib/report.ts`).
+- **Measurements:** in inches, one per kind per day, with a trend line.
+- **Progress photos:** stored in the private Supabase Storage bucket
+  `progress-photos`, under `<user id>/`. Storage policies stop anyone else listing,
+  opening or deleting them; they're shown through one-hour signed URLs and never
+  sent to Claude.
+- **Export my data:** five CSV files (food log, weigh-ins, movement, water,
+  measurements) of your own rows, with spreadsheet-formula injection defused.
+
+---
+
 ## Logging from a photo
 
 Today → Log food → **Photo**. **Take photo** opens the rear camera on a phone;
@@ -505,4 +573,5 @@ inline script, so there is no flash of the wrong theme.
 | 4 | Progress — chart, stats, target calculator | Built; signed-in browser check pending |
 | 5 | AI routes — estimate, sort groceries, cook, prep plan | Built; untested against the real API (no Anthropic key yet) |
 | 6 | PWA packaging, offline reads, Vercel deploy | Deployed at lifestyle-tracker-one.vercel.app |
-| 7 | Guest accounts, photo logging, weekly meal planner, app-wide AI cap | Built; live check pending |
+| 7 | Guest accounts, photo logging, weekly meal planner, app-wide AI cap | Built; checked live against Supabase |
+| 8 | MyFitnessPal-style: meals, scan, food database, quick add/copy, water, nutrients, exercise kcal, streak/report, measurements, photos, voice, export | Built; live check pending SQL `04` |
