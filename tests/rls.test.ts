@@ -551,6 +551,68 @@ describe("RLS policies", () => {
     });
   });
 
+  describe.runIf(available)("water, measurements and progress photos", () => {
+    it("keeps water private", async () => {
+      await alice.query("insert into public.water_logs (user_id, amount_oz) values ($1, 16)", [aliceId]);
+      expect((await alice.query("select id from public.water_logs")).rows).toHaveLength(1);
+      expect((await bob.query("select id from public.water_logs")).rows).toHaveLength(0);
+    });
+
+    it("keeps body measurements private, one per kind per day", async () => {
+      await alice.query("insert into public.body_measurements (user_id, kind, value_in) values ($1, 'waist', 32.5)", [aliceId]);
+      await expect(
+        alice.query("insert into public.body_measurements (user_id, kind, value_in) values ($1, 'waist', 32)", [aliceId]),
+      ).rejects.toThrow(/duplicate key|unique/i);
+      expect((await bob.query("select id from public.body_measurements")).rows).toHaveLength(0);
+    });
+
+    it("lets you store a photo only under your own folder", async () => {
+      await alice.query(
+        "insert into storage.objects (bucket_id, name, owner) values ('progress-photos', $1, $2)",
+        [`${aliceId}/one.jpg`, aliceId],
+      );
+      await expect(
+        bob.query("insert into storage.objects (bucket_id, name, owner) values ('progress-photos', $1, $2)", [
+          `${aliceId}/sneaky.jpg`,
+          bobId,
+        ]),
+      ).rejects.toThrow(/row-level security/i);
+    });
+
+    it("REQUIRED: a partner cannot read, list or delete the other person's progress photos", async () => {
+      await alice.query("insert into public.progress_photos (user_id, storage_path) values ($1, $2)", [
+        aliceId,
+        `${aliceId}/one.jpg`,
+      ]);
+      expect((await bob.query("select id from public.progress_photos")).rows).toHaveLength(0);
+      expect((await bob.query("select name from storage.objects where bucket_id = 'progress-photos'")).rows).toHaveLength(0);
+      const deleted = await bob.query("delete from storage.objects where bucket_id = 'progress-photos' returning id");
+      expect(deleted.rows).toHaveLength(0);
+      expect((await alice.query("select name from storage.objects where bucket_id = 'progress-photos'")).rows).toHaveLength(1);
+    });
+
+    it("refuses a photo row pointing into someone else's folder", async () => {
+      await expect(
+        bob.query("insert into public.progress_photos (user_id, storage_path) values ($1, $2)", [bobId, `${aliceId}/x.jpg`]),
+      ).rejects.toThrow(/check constraint/i);
+    });
+
+    it("records meal and nutrients through log_entry, keeping unknown nutrients null", async () => {
+      await alice.query(
+        `select * from public.log_entry(p_name => 'Oat bar', p_kcal => 190, p_protein_g => 4, p_carb_g => 29, p_fat_g => 7,
+           p_logged_on => '2026-09-13', p_meal => 'snack', p_fiber_g => 3, p_serving_label => '1 bar (40g)', p_barcode => '0123456789012')`,
+      );
+      const e = await alice.query<{ meal: string; fiber_g: string; sugar_g: string | null }>(
+        "select meal::text, fiber_g::text, sugar_g::text from public.entries where name = 'Oat bar'",
+      );
+      expect(e.rows[0]).toEqual({ meal: "snack", fiber_g: "3.00", sugar_g: null });
+      const f = await bob.query<{ barcode: string; serving_label: string }>(
+        "select barcode, serving_label from public.foods where name = 'Oat bar'",
+      );
+      expect(f.rows[0]).toEqual({ barcode: "0123456789012", serving_label: "1 bar (40g)" });
+    });
+  });
+
   describe.runIf(available)("ai_calls_since", () => {
     it("gives any user the app-wide count, and nothing else", async () => {
       await alice.query("insert into public.ai_usage (user_id, route, model) values ($1, 'estimate', 'claude-sonnet-5')", [aliceId]);
