@@ -86,7 +86,7 @@ export function CalorieHero({
         </p>
       )}
 
-      <div className="mt-4 grid gap-3">
+      <div className="mt-4 grid grid-cols-1 gap-3">
         <MacroBar name="Protein" eaten={eaten.protein_g} target={targets.protein} color="var(--pine)" />
         <MacroBar name="Carbs" eaten={eaten.carb_g} target={targets.carb} color="var(--marigold)" />
         <MacroBar name="Fat" eaten={eaten.fat_g} target={targets.fat} color="var(--muted)" />

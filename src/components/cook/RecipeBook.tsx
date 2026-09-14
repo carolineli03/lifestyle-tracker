@@ -121,15 +121,15 @@ export function RecipeBook({
       {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
 
       {form ? (
-        <form onSubmit={(e) => void save(e)} className="card mt-4 grid gap-3 p-5" aria-labelledby="recipe-form-heading">
+        <form onSubmit={(e) => void save(e)} className="card mt-4 grid grid-cols-1 gap-3 p-5" aria-labelledby="recipe-form-heading">
           <h2 id="recipe-form-heading" className="font-display text-lg font-semibold">
             {form.source === "import" ? "Check the imported recipe" : "Add a recipe"}
           </h2>
-          <label className="grid gap-1.5">
+          <label className="grid grid-cols-1 gap-1.5">
             <span className="text-[13px] font-semibold text-muted">Name</span>
             <input className="field" value={form.name} onChange={(e) => set("name", e.target.value)} />
           </label>
-          <label className="grid gap-1.5">
+          <label className="grid grid-cols-1 gap-1.5">
             <span className="text-[13px] font-semibold text-muted">Makes how many servings</span>
             <input
               className="field"
@@ -141,7 +141,7 @@ export function RecipeBook({
               onChange={(e) => set("servings", e.target.value)}
             />
           </label>
-          <label className="grid gap-1.5">
+          <label className="grid grid-cols-1 gap-1.5">
             <span className="text-[13px] font-semibold text-muted">Ingredients, one per line</span>
             <textarea
               className="field"
@@ -151,7 +151,7 @@ export function RecipeBook({
               onChange={(e) => set("ingredients", e.target.value)}
             />
           </label>
-          <label className="grid gap-1.5">
+          <label className="grid grid-cols-1 gap-1.5">
             <span className="text-[13px] font-semibold text-muted">Method</span>
             <textarea className="field" rows={4} value={form.method} onChange={(e) => set("method", e.target.value)} />
           </label>
@@ -166,7 +166,7 @@ export function RecipeBook({
                   ["fat", "F (g)"],
                 ] as const
               ).map(([key, label]) => (
-                <label key={key} className="grid gap-1">
+                <label key={key} className="grid grid-cols-1 gap-1">
                   <span className="text-[11px] font-semibold text-muted">{label}</span>
                   <input
                     className="field px-2"
@@ -230,7 +230,7 @@ export function RecipeBook({
             None yet. Add one above, or tap &ldquo;Save recipe&rdquo; on an idea in the Ideas tab.
           </p>
         ) : (
-          <ul className="mt-3 grid gap-2">
+          <ul className="mt-3 grid grid-cols-1 gap-2">
             {recipes.map((r) => (
               <li key={r.id} className="rounded-field" style={{ border: "1px solid var(--line)" }}>
                 <button

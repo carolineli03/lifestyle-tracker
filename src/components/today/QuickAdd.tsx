@@ -26,7 +26,7 @@ export function QuickAdd({ onAdd, busy }: { onAdd: (macros: MacroTotals) => Prom
 
   return (
     <form className="mt-4" onSubmit={(e) => void submit(e).catch(() => undefined)}>
-      <label className="grid gap-1.5">
+      <label className="grid grid-cols-1 gap-1.5">
         <span className="text-[13px] font-semibold text-muted">Calories</span>
         <input className="field" type="number" inputMode="numeric" min={1} required value={kcal} onChange={(e) => setKcal(e.target.value)} />
       </label>
@@ -38,7 +38,7 @@ export function QuickAdd({ onAdd, busy }: { onAdd: (macros: MacroTotals) => Prom
             ["Fat (g)", fat, setFat],
           ] as const
         ).map(([label, value, set]) => (
-          <label key={label} className="grid gap-1">
+          <label key={label} className="grid grid-cols-1 gap-1">
             <span className="text-[11px] font-semibold text-muted">{label}</span>
             <input className="field px-2" type="number" inputMode="decimal" min={0} placeholder="optional" value={value} onChange={(e) => set(e.target.value)} />
           </label>

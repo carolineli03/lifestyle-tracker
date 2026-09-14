@@ -118,7 +118,7 @@ export function TargetCalculator({
       </h2>
       <p className="mt-1 text-[13px] text-muted">Works out a daily calorie and macro target. Nothing saves until you say so.</p>
 
-      <form onSubmit={calculate} className="mt-4 grid gap-4">
+      <form onSubmit={calculate} className="mt-4 grid grid-cols-1 gap-4">
         <Fieldset legend="Sex at birth">
           {(["female", "male"] as const).map((s) => (
             <button
@@ -214,7 +214,7 @@ function Result({
         <Macro label="Fat" grams={out.fat} />
       </dl>
 
-      <div className="mt-4 grid gap-2 text-[14px] leading-relaxed">
+      <div className="mt-4 grid grid-cols-1 gap-2 text-[14px] leading-relaxed">
         <p>
           Your body burns about <strong>{out.bmr.toLocaleString()}</strong> kcal at rest (Mifflin-St Jeor). At activity{" "}
           {input.activity} that's <strong>{out.tdee.toLocaleString()}</strong> to maintain your weight.
@@ -279,7 +279,7 @@ function Fieldset({ legend, children }: { legend: string; children: React.ReactN
 
 export function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="grid gap-1.5">
+    <label className="grid grid-cols-1 gap-1.5">
       <span className="text-[13px] font-semibold text-muted">{label}</span>
       {children}
     </label>

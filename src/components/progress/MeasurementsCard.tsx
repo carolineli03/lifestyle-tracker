@@ -53,9 +53,9 @@ export function MeasurementsCard({ userId, today }: { userId: string; today: Iso
         Measurements
       </h2>
 
-      <form onSubmit={(e) => void submit(e)} className="mt-3 grid gap-2">
+      <form onSubmit={(e) => void submit(e)} className="mt-3 grid grid-cols-1 gap-2">
         <div className="grid grid-cols-2 gap-2">
-          <label className="grid gap-1">
+          <label className="grid grid-cols-1 gap-1">
             <span className="text-[12px] font-semibold text-muted">What</span>
             <select className="field" value={kind} onChange={(e) => setKind(e.target.value)}>
               {KINDS.map((k) => (
@@ -66,7 +66,7 @@ export function MeasurementsCard({ userId, today }: { userId: string; today: Iso
               <option value="custom">Other…</option>
             </select>
           </label>
-          <label className="grid gap-1">
+          <label className="grid grid-cols-1 gap-1">
             <span className="text-[12px] font-semibold text-muted">Inches</span>
             <input className="field" type="number" inputMode="decimal" step={0.25} min={1} value={value} onChange={(e) => setValue(e.target.value)} />
           </label>
@@ -86,7 +86,7 @@ export function MeasurementsCard({ userId, today }: { userId: string; today: Iso
       {rows && rows.length === 0 && <p className="mt-3 text-[14px] text-muted">No measurements yet. Same spot, same time of day works best.</p>}
 
       {byKind.size > 0 && (
-        <ul className="mt-4 grid gap-3">
+        <ul className="mt-4 grid grid-cols-1 gap-3">
           {[...byKind.entries()].map(([k, list]) => {
             const first = list[0]!;
             const last = list.at(-1)!;

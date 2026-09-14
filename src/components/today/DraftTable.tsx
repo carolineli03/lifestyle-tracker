@@ -64,7 +64,7 @@ export function DraftTable({
   if (drafts.length === 0) return null;
 
   return (
-    <ul className="mt-4 grid gap-3">
+    <ul className="mt-4 grid grid-cols-1 gap-3">
       {drafts.map((draft) => {
         const totals = draftTotals(draft);
         return (

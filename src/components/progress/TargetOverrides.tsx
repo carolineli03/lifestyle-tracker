@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Profile } from "@/lib/supabase/database.types";
 import type { ProfilePatch } from "@/lib/progress";
 import { isBelowFloor } from "@/lib/targets";
@@ -67,6 +67,15 @@ export function TargetOverrides({
   const [saved, setSaved] = useState(false);
   const [eatBack, setEatBack] = useState(profile?.eat_back_exercise ?? false);
 
+  // Re-seed when the profile changes elsewhere (the calculator saving) without
+  // remounting, so this form's own "Saved." confirmation stays on screen.
+  const updatedAt = profile?.updated_at;
+  useEffect(() => {
+    setValues(initial(profile));
+    setEatBack(profile?.eat_back_exercise ?? false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the save timestamp on purpose
+  }, [updatedAt]);
+
   const kcal = values.kcal_target ? Number(values.kcal_target) : null;
 
   function set(key: string, value: string): void {
@@ -121,7 +130,7 @@ export function TargetOverrides({
       </h2>
       <p className="mt-1 text-[13px] text-muted">Set any of these by hand. Blank clears it.</p>
 
-      <form onSubmit={submit} className="mt-4 grid gap-5">
+      <form onSubmit={submit} className="mt-4 grid grid-cols-1 gap-5">
         <div className="grid grid-cols-2 gap-3">
           {TARGETS.map((f) => (
             <div key={f.key} className={f.key === "kcal_target" ? "col-span-2" : undefined}>

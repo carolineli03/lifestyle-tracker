@@ -17,7 +17,7 @@ export function WeightChart({ points, pace }: { points: readonly WeightPoint[]; 
   if (points.length === 0) {
     return (
       <div
-        className="grid place-items-center rounded-field text-center text-[14px] text-muted"
+        className="grid grid-cols-1 place-items-center rounded-field text-center text-[14px] text-muted"
         style={{ height: 160, background: "var(--pine-wash)" }}
       >
         <p className="px-6">No weigh-ins yet. Add one on the Today tab and the line starts here.</p>

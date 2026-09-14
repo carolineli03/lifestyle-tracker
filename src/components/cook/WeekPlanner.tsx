@@ -153,7 +153,7 @@ export function WeekPlanner({
 
       {error && <ErrorNote message={error} onDismiss={() => setError(null)} />}
 
-      <ol className="mt-4 grid gap-3">
+      <ol className="mt-4 grid grid-cols-1 gap-3">
         {days.map((day) => {
           const dayRows = rowsForDay(all, day);
           const taken = new Set(dayRows.map((r) => r.meal));
@@ -170,7 +170,7 @@ export function WeekPlanner({
 
               {dayRows.length === 0 && adding !== day && <p className="mt-1 text-[13px] text-muted">No cooking planned.</p>}
 
-              <ul className="mt-2 grid gap-2">
+              <ul className="mt-2 grid grid-cols-1 gap-2">
                 {dayRows.map((row) => {
                   const recipe = recipeById.get(row.recipe_id);
                   const recipeName = recipe?.name ?? "Recipe";
@@ -372,7 +372,7 @@ function AddMeal({
   const [eaters, setEaters] = useState(2);
 
   return (
-    <div className="mt-3 grid gap-3 rounded-field p-3" style={{ border: "1px solid var(--line)" }}>
+    <div className="mt-3 grid grid-cols-1 gap-3 rounded-field p-3" style={{ border: "1px solid var(--line)" }}>
       <div role="radiogroup" aria-label="Which meal" className="flex flex-wrap gap-1.5">
         {free.map((m) => (
           <button
@@ -388,7 +388,7 @@ function AddMeal({
           </button>
         ))}
       </div>
-      <label className="grid gap-1.5">
+      <label className="grid grid-cols-1 gap-1.5">
         <span className="text-[13px] font-semibold text-muted">Recipe</span>
         <select className="field" value={recipeId} onChange={(e) => setRecipeId(e.target.value)}>
           {recipes.map((r) => (

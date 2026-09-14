@@ -58,7 +58,7 @@ export function FoodDbResults({ query, onPick }: { query: string; onPick: (food:
       )}
       {state === "done" && foods.length === 0 && <p className="mt-2 text-[14px] text-muted">No matches.</p>}
       {state === "done" && foods.length > 0 && (
-        <ul className="mt-2 grid gap-1">
+        <ul className="mt-2 grid grid-cols-1 gap-1">
           {foods.map((food) => (
             <li key={`${food.source}-${food.id}`}>
               <button

@@ -78,7 +78,7 @@ export function ShoppingList({
           Nothing on the list. Anything either of you marks as used up ends up here.
         </p>
       ) : (
-        <ul className="mt-3 grid">
+        <ul className="mt-3 grid grid-cols-1">
           {items.map((item) => (
             <li key={item.id} className="border-b last:border-b-0" style={{ borderColor: "var(--line)" }}>
               <div className="flex items-center gap-2 py-2">

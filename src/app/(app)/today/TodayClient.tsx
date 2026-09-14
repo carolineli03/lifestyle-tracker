@@ -222,7 +222,7 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
 
 function Skeleton() {
   return (
-    <div aria-busy="true" aria-live="polite" className="grid gap-4">
+    <div aria-busy="true" aria-live="polite" className="grid grid-cols-1 gap-4">
       <span className="sr-only">Loading your day…</span>
       {[140, 220, 120].map((h, i) => (
         <div
