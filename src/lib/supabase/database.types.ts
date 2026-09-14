@@ -15,6 +15,8 @@
 export type StorageLocation = "fridge" | "freezer" | "pantry";
 export type HouseholdRole = "owner" | "member";
 export type SexAtBirth = "female" | "male";
+export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
+export type RecipeSource = "manual" | "idea" | "import";
 
 export type Household = {
   id: string;
@@ -46,6 +48,11 @@ export type Profile = {
   goal_weight: number | null;
   goal_date: string | null;
   weekly_movement_goal: number | null;
+  fiber_target: number | null;
+  sugar_limit: number | null;
+  sodium_limit: number | null;
+  water_goal_oz: number;
+  eat_back_exercise: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -69,6 +76,11 @@ export type Food = {
   protein_g: number;
   carb_g: number;
   fat_g: number;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  serving_label: string | null;
+  barcode: string | null;
   times_logged: number;
   last_logged_at: string | null;
   created_at: string;
@@ -85,15 +97,50 @@ export type ShoppingListItem = {
   done_at: string | null;
 };
 
+export type Recipe = {
+  household_id: string;
+  id: string;
+  name: string;
+  /** What the recipe as written makes. */
+  servings: number;
+  ingredients: string[];
+  method: string | null;
+  kcal: number | null;
+  protein_g: number | null;
+  carb_g: number | null;
+  fat_g: number | null;
+  source: RecipeSource;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type MealPlanEntry = {
+  household_id: string;
+  id: string;
+  /** Local calendar day, YYYY-MM-DD. */
+  planned_on: string;
+  meal: MealSlot;
+  recipe_id: string;
+  eaters: number;
+  /** Null when cooked that day; otherwise the cooked row these leftovers come from. */
+  leftovers_from: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Entry = {
   user_id: string;
   id: string;
   logged_on: string;
+  meal: MealSlot | null;
   name: string;
   kcal: number;
   protein_g: number;
   carb_g: number;
   fat_g: number;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
   food_id: string | null;
   created_at: string;
 };
@@ -104,6 +151,33 @@ export type Movement = {
   logged_on: string;
   kind: string;
   minutes: number;
+  kcal: number | null;
+  created_at: string;
+};
+
+export type WaterLog = {
+  user_id: string;
+  id: string;
+  logged_on: string;
+  amount_oz: number;
+  created_at: string;
+};
+
+export type BodyMeasurement = {
+  user_id: string;
+  id: string;
+  measured_on: string;
+  kind: string;
+  value_in: number;
+  created_at: string;
+};
+
+export type ProgressPhoto = {
+  user_id: string;
+  id: string;
+  taken_on: string;
+  storage_path: string;
+  note: string | null;
   created_at: string;
 };
 
@@ -156,6 +230,21 @@ export type Database = {
         Update: Partial<PantryItem>;
         Relationships: [];
       };
+      recipes: {
+        Row: Row<Recipe>;
+        Insert: Insert<
+          Recipe,
+          "id" | "created_at" | "created_by" | "servings" | "ingredients" | "method" | "kcal" | "protein_g" | "carb_g" | "fat_g" | "source"
+        >;
+        Update: Partial<Recipe>;
+        Relationships: [];
+      };
+      meal_plan: {
+        Row: Row<MealPlanEntry>;
+        Insert: Insert<MealPlanEntry, "id" | "created_at" | "created_by" | "eaters" | "leftovers_from">;
+        Update: Partial<MealPlanEntry>;
+        Relationships: [];
+      };
       shopping_list: {
         Row: Row<ShoppingListItem>;
         Insert: Insert<ShoppingListItem, "id" | "created_at" | "note" | "done" | "added_by" | "done_at">;
@@ -166,21 +255,39 @@ export type Database = {
         Row: Row<Food>;
         Insert: Insert<
           Food,
-          "id" | "created_at" | "times_logged" | "last_logged_at" | "kcal" | "protein_g" | "carb_g" | "fat_g"
+          "id" | "created_at" | "times_logged" | "last_logged_at" | "kcal" | "protein_g" | "carb_g" | "fat_g" | "fiber_g" | "sugar_g" | "sodium_mg" | "serving_label" | "barcode"
         >;
         Update: Partial<Food>;
         Relationships: [];
       };
       entries: {
         Row: Row<Entry>;
-        Insert: Insert<Entry, "id" | "created_at" | "food_id" | "logged_on">;
+        Insert: Insert<Entry, "id" | "created_at" | "food_id" | "logged_on" | "meal" | "fiber_g" | "sugar_g" | "sodium_mg">;
         Update: Partial<Entry>;
         Relationships: [];
       };
       movement: {
         Row: Row<Movement>;
-        Insert: Insert<Movement, "id" | "created_at" | "logged_on">;
+        Insert: Insert<Movement, "id" | "created_at" | "logged_on" | "kcal">;
         Update: Partial<Movement>;
+        Relationships: [];
+      };
+      water_logs: {
+        Row: Row<WaterLog>;
+        Insert: Insert<WaterLog, "id" | "created_at" | "logged_on">;
+        Update: Partial<WaterLog>;
+        Relationships: [];
+      };
+      body_measurements: {
+        Row: Row<BodyMeasurement>;
+        Insert: Insert<BodyMeasurement, "id" | "created_at" | "measured_on">;
+        Update: Partial<BodyMeasurement>;
+        Relationships: [];
+      };
+      progress_photos: {
+        Row: Row<ProgressPhoto>;
+        Insert: Insert<ProgressPhoto, "id" | "created_at" | "taken_on" | "note">;
+        Update: Partial<ProgressPhoto>;
         Relationships: [];
       };
       weigh_ins: {
@@ -208,6 +315,19 @@ export type Database = {
           p_fat_g: number;
           p_logged_on?: string;
           p_remember?: boolean;
+          p_serving_kcal?: number;
+          p_serving_protein_g?: number;
+          p_serving_carb_g?: number;
+          p_serving_fat_g?: number;
+          p_meal?: MealSlot;
+          p_fiber_g?: number;
+          p_sugar_g?: number;
+          p_sodium_mg?: number;
+          p_serving_fiber_g?: number;
+          p_serving_sugar_g?: number;
+          p_serving_sodium_mg?: number;
+          p_serving_label?: string;
+          p_barcode?: string;
         };
         Returns: Entry;
       };
@@ -223,11 +343,13 @@ export type Database = {
       };
       current_household_id: { Args: Record<string, never>; Returns: string | null };
       is_household_member: { Args: { p_household_id: string }; Returns: boolean };
+      ai_calls_since: { Args: { p_since: string }; Returns: number };
     };
     Enums: {
       storage_location: StorageLocation;
       household_role: HouseholdRole;
       sex_at_birth: SexAtBirth;
+      meal_slot: MealSlot;
     };
     CompositeTypes: Record<never, never>;
   };

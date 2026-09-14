@@ -5,12 +5,14 @@ import type { Profile } from "@/lib/supabase/database.types";
 import type { ProfilePatch } from "@/lib/progress";
 import { isBelowFloor } from "@/lib/targets";
 import { ErrorNote } from "@/components/ErrorNote";
+import { NUTRIENT_SUGGESTIONS } from "@/lib/nutrients";
 import { Labelled } from "./TargetCalculator";
 
 type Field = {
   key: keyof ProfilePatch;
   label: string;
   kind: "int" | "decimal" | "date";
+  placeholder?: string;
 };
 
 const TARGETS: readonly Field[] = [
@@ -28,11 +30,20 @@ const GOALS: readonly Field[] = [
   { key: "weekly_movement_goal", label: "Weekly movement (min)", kind: "int" },
 ];
 
+const NUTRITION: readonly Field[] = [
+  { key: "fiber_target", label: "Fiber target (g)", kind: "int", placeholder: String(NUTRIENT_SUGGESTIONS.fiber_target) },
+  { key: "sugar_limit", label: "Sugar max (g)", kind: "int", placeholder: String(NUTRIENT_SUGGESTIONS.sugar_limit) },
+  { key: "sodium_limit", label: "Sodium max (mg)", kind: "int", placeholder: NUTRIENT_SUGGESTIONS.sodium_limit.toLocaleString() },
+  { key: "water_goal_oz", label: "Water goal (oz)", kind: "int", placeholder: "64" },
+];
+
+const ALL_FIELDS = [...TARGETS, ...NUTRITION, ...GOALS];
+
 type Values = Record<string, string>;
 
 function initial(profile: Profile | null): Values {
   const values: Values = {};
-  for (const f of [...TARGETS, ...GOALS]) {
+  for (const f of ALL_FIELDS) {
     const raw = profile?.[f.key as keyof Profile];
     values[f.key] = raw === null || raw === undefined ? "" : String(f.kind === "date" ? raw : Number(raw));
   }
@@ -54,6 +65,7 @@ export function TargetOverrides({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [eatBack, setEatBack] = useState(profile?.eat_back_exercise ?? false);
 
   const kcal = values.kcal_target ? Number(values.kcal_target) : null;
 
@@ -66,11 +78,12 @@ export function TargetOverrides({
     event.preventDefault();
     setError(null);
 
-    const patch: Record<string, number | string | null> = {};
-    for (const f of [...TARGETS, ...GOALS]) {
+    const patch: Record<string, number | string | boolean | null> = { eat_back_exercise: eatBack };
+    for (const f of ALL_FIELDS) {
       const raw = (values[f.key] ?? "").trim();
       if (raw === "") {
-        patch[f.key] = null;
+        // The water goal always has a value; blank goes back to the default.
+        patch[f.key] = f.key === "water_goal_oz" ? 64 : null;
         continue;
       }
       if (f.kind === "date") {
@@ -122,6 +135,35 @@ export function TargetOverrides({
           ))}
         </div>
 
+        <fieldset className="m-0 grid grid-cols-2 gap-3 border-0 p-0">
+          <legend className="mb-2 text-[13px] font-semibold text-muted">Nutrients &amp; water</legend>
+          {NUTRITION.map((f) => (
+            <Input key={f.key} field={f} value={values[f.key] ?? ""} onChange={set} />
+          ))}
+          <p className="col-span-2 text-[12px] text-muted">
+            Placeholders are common US guidance: at least 25 g fiber, under 50 g added sugar and under 2,300 mg sodium a
+            day. Leave blank to hide them on Today.
+          </p>
+        </fieldset>
+
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={eatBack}
+            onChange={(e) => {
+              setEatBack(e.target.checked);
+              setSaved(false);
+            }}
+            style={{ width: 22, height: 22, marginTop: 2, accentColor: "var(--pine)" }}
+          />
+          <span>
+            <span className="block text-[15px] font-semibold">Add exercise calories to my daily target</span>
+            <span className="block text-[13px] text-muted">
+              Like MyFitnessPal. Burn estimates tend to run high, so this is off by default.
+            </span>
+          </span>
+        </label>
+
         <div className="grid grid-cols-2 gap-3">
           {GOALS.map((f) => (
             <div key={f.key} className={f.key === "weekly_movement_goal" ? "col-span-2" : undefined}>
@@ -164,6 +206,7 @@ function Input({
         inputMode={field.kind === "int" ? "numeric" : field.kind === "decimal" ? "decimal" : undefined}
         step={field.kind === "decimal" ? 0.1 : field.kind === "int" ? 1 : undefined}
         min={field.kind === "date" ? undefined : 0}
+        placeholder={field.placeholder}
         value={value}
         onChange={(e) => onChange(field.key, e.target.value)}
       />

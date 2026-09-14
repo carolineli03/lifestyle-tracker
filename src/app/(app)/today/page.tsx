@@ -7,7 +7,7 @@ export const metadata = { title: "Today · Lifestyle Tracker" };
 
 export default async function TodayPage() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/start");
 
   // Targets are date-independent, so they can be fetched here and handed down
   // — one fewer round trip before the hero number can render.

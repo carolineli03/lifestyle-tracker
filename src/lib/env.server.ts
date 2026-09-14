@@ -10,4 +10,9 @@ export const serverEnv = {
     const key = process.env.ANTHROPIC_API_KEY?.trim();
     return key ? key : undefined;
   },
+  /** Optional. Without it the food search uses USDA's rate-limited DEMO_KEY. */
+  get usdaApiKey(): string | undefined {
+    const key = process.env.USDA_API_KEY?.trim();
+    return key ? key : undefined;
+  },
 };

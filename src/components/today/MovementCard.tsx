@@ -146,7 +146,9 @@ export function MovementCard({
               style={{ borderColor: "var(--line)" }}
             >
               <span className="flex-1 truncate text-[15px]">{m.kind}</span>
-              <span className="shrink-0 text-[15px] text-muted">{m.minutes} min</span>
+              <span className="shrink-0 text-[15px] text-muted">
+                {m.minutes} min{m.kcal !== null ? ` · ~${m.kcal} kcal` : ""}
+              </span>
               <button
                 type="button"
                 onClick={() => void run(() => onRemove(m.id))}

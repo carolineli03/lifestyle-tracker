@@ -4,7 +4,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
 import { serverEnv } from "@/lib/env.server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { fail, runStructured, type AiDeps, type AiOutcome } from "./core";
+import { fail, runStructured, type AiDeps, type AiOutcome, type UserContent } from "./core";
 import { AI_MODEL, type AiErrorBody, type AiRoute } from "./schemas";
 
 /**
@@ -19,7 +19,7 @@ export type AiContext = { supabase: Supabase; userId: string };
 export type AiJob<S extends z.ZodType> = {
   route: AiRoute;
   system: string;
-  user: string;
+  user: UserContent;
   schema: S;
   effort: "low" | "medium";
 };
@@ -46,6 +46,11 @@ function realDeps({ supabase, userId }: AiContext): AiDeps {
         .order("created_at", { ascending: true });
       if (error) throw new Error(`Could not check AI usage: ${error.message}`);
       return (data ?? []).map((r) => new Date(r.created_at));
+    },
+    async globalCallsSince(since) {
+      const { data, error } = await supabase.rpc("ai_calls_since", { p_since: since.toISOString() });
+      if (error) throw new Error(`Could not check the app-wide AI limit: ${error.message}`);
+      return data ?? 0;
     },
     async logUsage(row) {
       const { error } = await supabase.from("ai_usage").insert({ ...row, user_id: userId });

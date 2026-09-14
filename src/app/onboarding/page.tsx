@@ -6,7 +6,7 @@ export const metadata = { title: "Set up your kitchen · Lifestyle Tracker" };
 
 export default async function OnboardingPage() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/start");
   if (session.household) redirect("/today");
 
   return (

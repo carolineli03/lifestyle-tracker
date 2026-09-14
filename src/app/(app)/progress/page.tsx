@@ -8,7 +8,7 @@ export const metadata = { title: "Progress · Lifestyle Tracker" };
 
 export default async function ProgressPage() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/start");
 
   // The profile is date-independent, so it comes from the server. Weigh-ins
   // and movement are read client-side: "the last seven days" is a local day.

@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Food, Profile } from "@/lib/supabase/database.types";
-import { todayIso, type IsoDate } from "@/lib/date";
+import { addDays, todayIso, type IsoDate } from "@/lib/date";
 import { sumMacros, type MacroTotals, type Targets } from "@/lib/totals";
+import { sumNutrients } from "@/lib/nutrients";
+import { currentStreak } from "@/lib/report";
 import * as api from "@/lib/today";
 import { DateStepper } from "@/components/today/DateStepper";
 import { CalorieHero } from "@/components/today/CalorieHero";
 import { LogFood } from "@/components/today/LogFood";
-import { EntryList } from "@/components/today/EntryList";
+import { MealSections } from "@/components/today/MealSections";
+import { WaterCard } from "@/components/today/WaterCard";
 import { MovementCard } from "@/components/today/MovementCard";
 import { WeighInCard } from "@/components/today/WeighInCard";
 import { ErrorNote } from "@/components/ErrorNote";
@@ -30,6 +33,7 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
   const [busy, setBusy] = useState(false);
   const [removingEntry, setRemovingEntry] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loggedDays, setLoggedDays] = useState<IsoDate[]>([]);
 
   const targets: Targets = {
     kcal: profile?.kcal_target ?? null,
@@ -38,10 +42,22 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
     fat: profile?.fat_target ?? null,
   };
 
-  const reloadDay = useCallback(async (which: IsoDate) => {
-    const data = await api.fetchDay(which);
-    setDay(data);
+  const reloadStreak = useCallback(async () => {
+    setLoggedDays(await api.fetchLoggedDays(addDays(todayIso(), -400)));
   }, []);
+
+  const reloadDay = useCallback(
+    async (which: IsoDate) => {
+      const data = await api.fetchDay(which);
+      setDay(data);
+      await reloadStreak();
+    },
+    [reloadStreak],
+  );
+
+  useEffect(() => {
+    reloadStreak().catch(() => undefined);
+  }, [reloadStreak]);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,15 +107,16 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
     })),
   );
 
-  async function confirmEntries(
-    items: ReadonlyArray<{ name: string; macros: MacroTotals; remember: boolean }>,
-  ): Promise<void> {
+  const nutrients = sumNutrients(day?.entries ?? []);
+  const exerciseKcal = (day?.weekMovement ?? []).filter((m) => m.logged_on === date).reduce((s, m) => s + (m.kcal ?? 0), 0);
+
+  async function confirmEntries(items: readonly api.LogInput[]): Promise<void> {
     setBusy(true);
     try {
       // Sequential on purpose: each call may upsert into `foods`, and two
       // concurrent upserts of the same new food would race on the unique index.
       for (const item of items) {
-        await api.logEntry(date, item.name, item.macros, item.remember);
+        await api.logEntry(date, item);
       }
       await Promise.all([reloadDay(date), api.fetchFoods().then(setFoods)]);
     } finally {
@@ -130,14 +147,45 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
         <Skeleton />
       ) : (
         <>
-          <CalorieHero eaten={eaten} targets={targets} />
+          <CalorieHero
+            eaten={eaten}
+            targets={targets}
+            exerciseKcal={exerciseKcal}
+            eatBack={profile?.eat_back_exercise ?? false}
+            nutrients={nutrients}
+            nutrientGoals={{
+              fiber: profile?.fiber_target ?? null,
+              sugar: profile?.sugar_limit ?? null,
+              sodium: profile?.sodium_limit ?? null,
+            }}
+            streak={currentStreak(loggedDays, todayIso())}
+          />
 
           <LogFood foods={foods} onConfirm={confirmEntries} busy={busy} />
 
-          <EntryList
+          <MealSections
+            date={date}
             entries={day?.entries ?? []}
             onRemove={(id) => void removeEntry(id)}
             removing={removingEntry}
+            onCopy={async (fromDate, fromMeal, toMeal) => {
+              const n = await api.copyMealFrom(userId, fromDate, fromMeal, date, toMeal);
+              if (n > 0) await reloadDay(date);
+              return n;
+            }}
+          />
+
+          <WaterCard
+            logs={day?.water ?? []}
+            goalOz={profile?.water_goal_oz ?? 64}
+            onAdd={async (oz) => {
+              await api.addWater(userId, date, oz);
+              await reloadDay(date);
+            }}
+            onUndo={async (id) => {
+              await api.deleteWater(id);
+              await reloadDay(date);
+            }}
           />
 
           <MovementCard
@@ -145,7 +193,7 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
             weekMovement={day?.weekMovement ?? []}
             weeklyGoal={profile?.weekly_movement_goal ?? null}
             onAdd={async (kind, minutes) => {
-              await api.addMovement(userId, date, kind, minutes);
+              await api.addMovement(userId, date, kind, minutes, day?.latestWeightLb ?? null);
               await reloadDay(date);
             }}
             onRemove={async (id) => {

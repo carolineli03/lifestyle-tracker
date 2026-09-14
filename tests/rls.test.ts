@@ -244,6 +244,17 @@ describe("RLS policies", () => {
   });
 
   describe.runIf(available)("log_entry", () => {
+    it("remembers a new food as ONE serving when the entry was several", async () => {
+      await alice.query(
+        "select * from public.log_entry($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        ["Granola (label)", 480, 12, 76, 16, "2026-09-13", true, 240, 6, 38, 8],
+      );
+      const food = await alice.query<{ kcal: string }>("select kcal::text from public.foods where name = 'Granola (label)'");
+      const entry = await alice.query<{ kcal: string }>("select kcal::text from public.entries where name = 'Granola (label)'");
+      expect(Number(food.rows[0]?.kcal)).toBe(240);
+      expect(Number(entry.rows[0]?.kcal)).toBe(480);
+    });
+
     it("writes the entry and remembers the food in one go", async () => {
       await alice.query("select * from public.log_entry($1, $2, $3, $4, $5, $6)", [
         "Oat porridge",
@@ -443,6 +454,173 @@ describe("RLS policies", () => {
       await expect(
         carol.query("select * from public.stock_shopping_item($1)", [rows[0]?.id]),
       ).rejects.toThrow(/no longer on the list/i);
+    });
+  });
+
+  describe.runIf(available)("recipes and the meal plan", () => {
+    let chiliId = "";
+    let cookId = "";
+
+    it("shares recipes within the household", async () => {
+      const { rows } = await alice.query<{ id: string }>(
+        `insert into public.recipes (household_id, name, servings, ingredients, source)
+         values ($1, 'Chili', 4, array['2 lb beef', '1 onion'], 'manual') returning id`,
+        [householdId],
+      );
+      chiliId = rows[0]?.id ?? "";
+      const seen = await bob.query<{ name: string }>("select name from public.recipes");
+      expect(seen.rows.map((r) => r.name)).toContain("Chili");
+    });
+
+    it("refuses the same recipe name twice, ignoring case", async () => {
+      await expect(
+        bob.query("insert into public.recipes (household_id, name) values ($1, 'CHILI ')", [householdId]),
+      ).rejects.toThrow(/duplicate key|unique/i);
+    });
+
+    it("lets the partner plan a cook and leftovers from the shared recipe", async () => {
+      const cooked = await bob.query<{ id: string }>(
+        `insert into public.meal_plan (household_id, planned_on, meal, recipe_id, eaters)
+         values ($1, current_date, 'dinner', $2, 2) returning id`,
+        [householdId, chiliId],
+      );
+      cookId = cooked.rows[0]?.id ?? "";
+      await alice.query(
+        `insert into public.meal_plan (household_id, planned_on, meal, recipe_id, eaters, leftovers_from)
+         values ($1, current_date + 1, 'lunch', $2, 2, $3)`,
+        [householdId, chiliId, cookId],
+      );
+      const { rows } = await alice.query("select id from public.meal_plan");
+      expect(rows).toHaveLength(2);
+    });
+
+    it("refuses leftovers more than four days after cooking", async () => {
+      await expect(
+        alice.query(
+          `insert into public.meal_plan (household_id, planned_on, meal, recipe_id, leftovers_from)
+           values ($1, current_date + 5, 'dinner', $2, $3)`,
+          [householdId, chiliId, cookId],
+        ),
+      ).rejects.toThrow(/within four days/i);
+    });
+
+    it("refuses leftovers before the meal was cooked", async () => {
+      await expect(
+        alice.query(
+          `insert into public.meal_plan (household_id, planned_on, meal, recipe_id, leftovers_from)
+           values ($1, current_date - 1, 'dinner', $2, $3)`,
+          [householdId, chiliId, cookId],
+        ),
+      ).rejects.toThrow(/within four days/i);
+    });
+
+    it("refuses two plans for the same meal slot", async () => {
+      await expect(
+        bob.query(
+          `insert into public.meal_plan (household_id, planned_on, meal, recipe_id)
+           values ($1, current_date, 'dinner', $2)`,
+          [householdId, chiliId],
+        ),
+      ).rejects.toThrow(/duplicate key|unique/i);
+    });
+
+    it("hides recipes and plans from another household", async () => {
+      expect((await carol.query("select id from public.recipes")).rows).toHaveLength(0);
+      expect((await carol.query("select id from public.meal_plan")).rows).toHaveLength(0);
+    });
+
+    it("cannot plan a meal from another kitchen's recipe", async () => {
+      const carolHousehold = await carol.query<{ id: string }>("select public.current_household_id() as id");
+      const theirs = await carol.query<{ id: string }>(
+        "insert into public.recipes (household_id, name) values ($1, 'Carol soup') returning id",
+        [carolHousehold.rows[0]?.id],
+      );
+      await expect(
+        alice.query(
+          `insert into public.meal_plan (household_id, planned_on, meal, recipe_id)
+           values ($1, current_date + 2, 'dinner', $2)`,
+          [householdId, theirs.rows[0]?.id],
+        ),
+      ).rejects.toThrow(/foreign key/i);
+    });
+
+    it("removes the leftovers when the cook is deleted", async () => {
+      await bob.query("delete from public.meal_plan where id = $1", [cookId]);
+      const { rows } = await alice.query("select id from public.meal_plan");
+      expect(rows).toHaveLength(0);
+    });
+  });
+
+  describe.runIf(available)("water, measurements and progress photos", () => {
+    it("keeps water private", async () => {
+      await alice.query("insert into public.water_logs (user_id, amount_oz) values ($1, 16)", [aliceId]);
+      expect((await alice.query("select id from public.water_logs")).rows).toHaveLength(1);
+      expect((await bob.query("select id from public.water_logs")).rows).toHaveLength(0);
+    });
+
+    it("keeps body measurements private, one per kind per day", async () => {
+      await alice.query("insert into public.body_measurements (user_id, kind, value_in) values ($1, 'waist', 32.5)", [aliceId]);
+      await expect(
+        alice.query("insert into public.body_measurements (user_id, kind, value_in) values ($1, 'waist', 32)", [aliceId]),
+      ).rejects.toThrow(/duplicate key|unique/i);
+      expect((await bob.query("select id from public.body_measurements")).rows).toHaveLength(0);
+    });
+
+    it("lets you store a photo only under your own folder", async () => {
+      await alice.query(
+        "insert into storage.objects (bucket_id, name, owner) values ('progress-photos', $1, $2)",
+        [`${aliceId}/one.jpg`, aliceId],
+      );
+      await expect(
+        bob.query("insert into storage.objects (bucket_id, name, owner) values ('progress-photos', $1, $2)", [
+          `${aliceId}/sneaky.jpg`,
+          bobId,
+        ]),
+      ).rejects.toThrow(/row-level security/i);
+    });
+
+    it("REQUIRED: a partner cannot read, list or delete the other person's progress photos", async () => {
+      await alice.query("insert into public.progress_photos (user_id, storage_path) values ($1, $2)", [
+        aliceId,
+        `${aliceId}/one.jpg`,
+      ]);
+      expect((await bob.query("select id from public.progress_photos")).rows).toHaveLength(0);
+      expect((await bob.query("select name from storage.objects where bucket_id = 'progress-photos'")).rows).toHaveLength(0);
+      const deleted = await bob.query("delete from storage.objects where bucket_id = 'progress-photos' returning id");
+      expect(deleted.rows).toHaveLength(0);
+      expect((await alice.query("select name from storage.objects where bucket_id = 'progress-photos'")).rows).toHaveLength(1);
+    });
+
+    it("refuses a photo row pointing into someone else's folder", async () => {
+      await expect(
+        bob.query("insert into public.progress_photos (user_id, storage_path) values ($1, $2)", [bobId, `${aliceId}/x.jpg`]),
+      ).rejects.toThrow(/check constraint/i);
+    });
+
+    it("records meal and nutrients through log_entry, keeping unknown nutrients null", async () => {
+      await alice.query(
+        `select * from public.log_entry(p_name => 'Oat bar', p_kcal => 190, p_protein_g => 4, p_carb_g => 29, p_fat_g => 7,
+           p_logged_on => '2026-09-13', p_meal => 'snack', p_fiber_g => 3, p_serving_label => '1 bar (40g)', p_barcode => '0123456789012')`,
+      );
+      const e = await alice.query<{ meal: string; fiber_g: string; sugar_g: string | null }>(
+        "select meal::text, fiber_g::text, sugar_g::text from public.entries where name = 'Oat bar'",
+      );
+      expect(e.rows[0]).toEqual({ meal: "snack", fiber_g: "3.00", sugar_g: null });
+      const f = await bob.query<{ barcode: string; serving_label: string }>(
+        "select barcode, serving_label from public.foods where name = 'Oat bar'",
+      );
+      expect(f.rows[0]).toEqual({ barcode: "0123456789012", serving_label: "1 bar (40g)" });
+    });
+  });
+
+  describe.runIf(available)("ai_calls_since", () => {
+    it("gives any user the app-wide count, and nothing else", async () => {
+      await alice.query("insert into public.ai_usage (user_id, route, model) values ($1, 'estimate', 'claude-sonnet-5')", [aliceId]);
+      await carol.query("insert into public.ai_usage (user_id, route, model) values ($1, 'cook', 'claude-sonnet-5')", [carolId]);
+      const { rows } = await bob.query<{ n: number }>("select public.ai_calls_since(now() - interval '1 day') as n");
+      expect(rows[0]?.n).toBe(2);
+      // …while the rows themselves stay private.
+      expect((await bob.query("select id from public.ai_usage")).rows).toHaveLength(0);
     });
   });
 
