@@ -58,15 +58,17 @@ export async function deleteRecipe(id: string): Promise<void> {
 }
 
 /**
- * The plan for a week, plus the few days before it: a Sunday cook's leftovers
- * can land on Monday, and the cook row is needed to show where they came from.
+ * The plan for a week, plus REHEAT_DAYS either side. A Monday's leftovers can
+ * come from last Sunday's cook, and that cook row is needed to show where they
+ * came from. A Sunday cook can also feed next Monday and Tuesday, and those rows
+ * are needed to count its portions.
  */
 export async function fetchPlan(weekStart: IsoDate, weekEnd: IsoDate): Promise<MealPlanEntry[]> {
   const { data, error } = await supabaseBrowser()
     .from("meal_plan")
     .select("*")
     .gte("planned_on", addDays(weekStart, -REHEAT_DAYS))
-    .lte("planned_on", weekEnd)
+    .lte("planned_on", addDays(weekEnd, REHEAT_DAYS))
     .order("planned_on", { ascending: true });
   fail("Could not load the plan", error);
   return data ?? [];

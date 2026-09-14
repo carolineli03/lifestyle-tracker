@@ -44,7 +44,9 @@ export function LogFood({
   busy,
 }: {
   foods: readonly Food[];
-  onConfirm: (items: ReadonlyArray<{ name: string; macros: MacroTotals; remember: boolean }>) => Promise<void>;
+  onConfirm: (
+    items: ReadonlyArray<{ name: string; macros: MacroTotals; perServing: MacroTotals; remember: boolean }>,
+  ) => Promise<void>;
   busy: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("search");
@@ -114,7 +116,7 @@ export function LogFood({
 
   async function confirm(): Promise<void> {
     const items = drafts
-      .map((d) => ({ name: d.name.trim(), macros: draftTotals(d), remember: d.remember }))
+      .map((d) => ({ name: d.name.trim(), macros: draftTotals(d), perServing: d.base, remember: d.remember }))
       .filter((d) => d.name.length > 0);
 
     if (items.length === 0) {

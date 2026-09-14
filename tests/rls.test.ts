@@ -244,6 +244,17 @@ describe("RLS policies", () => {
   });
 
   describe.runIf(available)("log_entry", () => {
+    it("remembers a new food as ONE serving when the entry was several", async () => {
+      await alice.query(
+        "select * from public.log_entry($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        ["Granola (label)", 480, 12, 76, 16, "2026-09-13", true, 240, 6, 38, 8],
+      );
+      const food = await alice.query<{ kcal: string }>("select kcal::text from public.foods where name = 'Granola (label)'");
+      const entry = await alice.query<{ kcal: string }>("select kcal::text from public.entries where name = 'Granola (label)'");
+      expect(Number(food.rows[0]?.kcal)).toBe(240);
+      expect(Number(entry.rows[0]?.kcal)).toBe(480);
+    });
+
     it("writes the entry and remembers the food in one go", async () => {
       await alice.query("select * from public.log_entry($1, $2, $3, $4, $5, $6)", [
         "Oat porridge",

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { MealPlanEntry, MealSlot, Recipe } from "@/lib/supabase/database.types";
-import { addDays, describeDate, fromIsoDate, todayIso, weekBounds, type IsoDate } from "@/lib/date";
+import { addDays, fromIsoDate, todayIso, weekBounds, type IsoDate } from "@/lib/date";
 import {
   MEAL_LABEL,
   MEAL_SLOTS,
@@ -108,7 +108,13 @@ export function WeekPlanner({
           </button>
           <div className="text-center">
             <h2 id="plan-heading" className="font-display text-lg font-semibold">
-              {start <= today && today <= end ? "This week" : `Week of ${describeDate(start, today)}`}
+              {start <= today && today <= end
+                ? "This week"
+                : start === addDays(weekBounds(today).start, 7)
+                  ? "Next week"
+                  : start === addDays(weekBounds(today).start, -7)
+                    ? "Last week"
+                    : `Week of ${fromIsoDate(start).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`}
             </h2>
             <p className="text-[13px] text-muted">
               {fromIsoDate(start).toLocaleDateString(undefined, { day: "numeric", month: "short" })} –{" "}

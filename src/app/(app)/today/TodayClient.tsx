@@ -92,14 +92,14 @@ export function TodayClient({ userId, profile }: { userId: string; profile: Prof
   );
 
   async function confirmEntries(
-    items: ReadonlyArray<{ name: string; macros: MacroTotals; remember: boolean }>,
+    items: ReadonlyArray<{ name: string; macros: MacroTotals; perServing: MacroTotals; remember: boolean }>,
   ): Promise<void> {
     setBusy(true);
     try {
       // Sequential on purpose: each call may upsert into `foods`, and two
       // concurrent upserts of the same new food would race on the unique index.
       for (const item of items) {
-        await api.logEntry(date, item.name, item.macros, item.remember);
+        await api.logEntry(date, item.name, item.macros, item.remember, item.perServing);
       }
       await Promise.all([reloadDay(date), api.fetchFoods().then(setFoods)]);
     } finally {

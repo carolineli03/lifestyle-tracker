@@ -256,6 +256,10 @@ export type Database = {
           p_fat_g: number;
           p_logged_on?: string;
           p_remember?: boolean;
+          p_serving_kcal?: number;
+          p_serving_protein_g?: number;
+          p_serving_carb_g?: number;
+          p_serving_fat_g?: number;
         };
         Returns: Entry;
       };

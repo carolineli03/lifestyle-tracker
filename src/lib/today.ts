@@ -72,6 +72,8 @@ export async function logEntry(
   name: string,
   macros: MacroTotals,
   remember = true,
+  /** One serving, for a food the library hasn't seen yet. Defaults to `macros`. */
+  perServing?: MacroTotals,
 ): Promise<Entry> {
   const sb = supabaseBrowser();
   const { data, error } = await sb.rpc("log_entry", {
@@ -82,6 +84,14 @@ export async function logEntry(
     p_fat_g: macros.fat_g,
     p_logged_on: date,
     p_remember: remember,
+    ...(perServing
+      ? {
+          p_serving_kcal: Math.round(perServing.kcal),
+          p_serving_protein_g: perServing.protein_g,
+          p_serving_carb_g: perServing.carb_g,
+          p_serving_fat_g: perServing.fat_g,
+        }
+      : {}),
   });
   fail("Could not save that entry", error);
   if (!data) throw new Error("Could not save that entry: the database returned nothing.");
