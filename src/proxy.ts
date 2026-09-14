@@ -17,6 +17,15 @@ export async function proxy(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
 
+  if (!userId && pathname.startsWith("/api/")) {
+    // A fetch() can't follow a redirect to a login page into anything useful;
+    // tell it plainly. Each route re-checks the session itself as well.
+    return Response.json(
+      { error: { code: "unauthenticated", message: "You're signed out. Sign in again and retry." } },
+      { status: 401 },
+    );
+  }
+
   if (!userId && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
