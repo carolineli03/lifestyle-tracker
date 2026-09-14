@@ -149,6 +149,9 @@ export async function deletePhoto(photo: ProgressPhoto): Promise<void> {
   const sb = supabaseBrowser();
   const removed = await sb.storage.from(PHOTO_BUCKET).remove([photo.storage_path]);
   fail("Could not delete that photo", removed.error);
+  // Storage reports a delete it wasn't allowed to do as success with nothing
+  // removed. Keep the row so the photo doesn't silently become an orphan file.
+  if ((removed.data ?? []).length === 0) throw new Error("Could not delete that photo: the file wasn't removed.");
   const { error } = await sb.from("progress_photos").delete().eq("id", photo.id);
   fail("Could not delete that photo", error);
 }
